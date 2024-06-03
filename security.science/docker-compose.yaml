@@ -1,0 +1,22 @@
+services:
+  security-science:
+    build:
+      context: https://github.com/securityinmobility/security.science.git#main
+    restart: always
+    networks:
+      - web
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: '0.2g'
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.security-science.rule=Host(`security.science`) || Host(`www.security.science`)"
+      - "traefik.http.routers.security-science.entrypoints=https"
+      - "traefik.http.routers.security-science.tls=true"
+      - "traefik.http.routers.security-science.tls.certresolver=le"
+
+networks:
+  web:
+    external: true
