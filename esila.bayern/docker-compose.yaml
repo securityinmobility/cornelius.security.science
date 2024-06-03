@@ -1,0 +1,22 @@
+services:
+  esila-bayern:
+    build:
+      context: https://github.com/securityinmobility/esila.bayern.git#master
+    restart: always
+    networks:
+      - web
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: '0.2g'
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.esila-bayern.rule=Host(`esila.bayern`) || Host(`www.esila.bayern`)"
+      - "traefik.http.routers.esila-bayern.entrypoints=https"
+      - "traefik.http.routers.esila-bayern.tls=true"
+      - "traefik.http.routers.esila-bayern.tls.certresolver=le"
+
+networks:
+  web:
+    external: true
