@@ -1,7 +1,6 @@
 services:
   esila-bayern:
-    build:
-      context: https://github.com/securityinmobility/esila.bayern.git#master
+    image: ghcr.io/securityinmobility/esila.bayern:latest
     restart: always
     networks:
       - web

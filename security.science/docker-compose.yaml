@@ -1,7 +1,6 @@
 services:
   security-science:
-    build:
-      context: https://github.com/securityinmobility/security.science.git#main
+    image: ghcr.io/securityinmobility/security.science:latest
     restart: always
     networks:
       - web
