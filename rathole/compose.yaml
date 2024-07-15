@@ -1,0 +1,15 @@
+services:
+  rathole:
+    image: docker.io/rapiz1/rathole:latest
+    command: --server /app/server.toml
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: "1g"
+    ports:
+      - "2333:2333"
+      - "65201:65201"
+    volumes:
+      - ./server.secret.toml:/app/server.toml:ro
