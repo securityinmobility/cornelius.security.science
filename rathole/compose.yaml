@@ -1,6 +1,7 @@
 services:
   rathole:
-    image: docker.io/rapiz1/rathole:latest
+    #image: docker.io/rapiz1/rathole:latest
+    build: https://github.com/rapiz1/rathole.git#main
     command: --server /app/server.toml
     restart: always
     deploy:
