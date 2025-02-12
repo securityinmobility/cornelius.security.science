@@ -4,6 +4,8 @@ services:
     build: https://github.com/rapiz1/rathole.git#main
     command: --server /app/server.toml
     restart: always
+    networks:
+      - web
     deploy:
       resources:
         limits:
@@ -21,3 +23,7 @@ services:
       - "traefik.http.services.rathole-service.loadbalancer.server.port=65202"
     volumes:
       - ./server.secret.toml:/app/server.toml:ro
+
+networks:
+  web:
+    external: true
