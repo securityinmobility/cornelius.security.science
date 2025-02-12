@@ -12,5 +12,12 @@ services:
     ports:
       - "2333:2333"
       - "65201:65201"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.rathole.rule=Host(`tun0.security.science`)"
+      - "traefik.http.routers.rathole.entrypoints=https"
+      - "traefik.http.routers.rathole.tls=true"
+      - "traefik.http.routers.rathole.tls.certresolver=le"
+      - "traefik.http.services.rathole-service.loadbalancer.server.port=65202"
     volumes:
       - ./server.secret.toml:/app/server.toml:ro
