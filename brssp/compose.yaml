@@ -1,0 +1,22 @@
+services:
+  rathole:
+    image: ghcr.io/hullrich/brssp:latest
+    restart: always
+    networks:
+      - web
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: "1g"
+    ports:
+      - "8332:8332"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.brssp.rule=Host(`tun0.security.science`)"
+      - "traefik.http.routers.brssp.entrypoints=http"
+      - "traefik.http.services.brssp-service.loadbalancer.server.port=65203"
+
+networks:
+  web:
+    external: true
