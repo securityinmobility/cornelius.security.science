@@ -2,8 +2,6 @@ services:
   brssp:
     image: ghcr.io/hullrich/brssp:latest
     restart: always
-    networks:
-      - web
     deploy:
       resources:
         limits:
@@ -11,5 +9,3 @@ services:
           memory: "1g"
     ports:
       - "8332:8332"
-    labels:
-      - "traefik.enable=false"
