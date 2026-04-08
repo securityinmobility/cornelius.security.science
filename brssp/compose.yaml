@@ -2,10 +2,35 @@ services:
   brssp:
     image: ghcr.io/hullrich/brssp:latest
     restart: always
+    ports:
+      - "8332:8332"
     deploy:
       resources:
         limits:
           cpus: "1"
           memory: "1g"
-    ports:
-      - "8332:8332"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: always
+    networks:
+      - web
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./certs:/certs:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.brssp.rule=Host(`brssp-easy.security.science`)"
+      - "traefik.http.routers.brssp.entrypoints=https"
+      - "traefik.http.routers.brssp.tls=true"
+      - "traefik.http.routers.brssp.tls.certresolver=le"
+      - "traefik.http.services.brssp.loadbalancer.server.port=80"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: "128m"
+
+networks:
+  web:
+    external: true

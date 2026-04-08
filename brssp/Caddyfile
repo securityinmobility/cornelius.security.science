@@ -1,0 +1,15 @@
+:80 {
+	basicauth {
+		# Generate with: docker run --rm caddy:2-alpine caddy hash-password --plaintext 'yourpassword'
+		user REPLACE_WITH_HASHED_PASSWORD
+	}
+
+	reverse_proxy brssp.security.science:8332 {
+		transport http {
+			tls
+			tls_server_name brssp.security.science
+			tls_client_auth /certs/client.crt /certs/client.key
+			tls_trusted_ca_certs /certs/server_ca.pem
+		}
+	}
+}
