@@ -4,6 +4,8 @@ services:
     restart: always
     ports:
       - "8332:8332"
+    volumes:
+      - ./submissions:/www/brssp/submissions
     deploy:
       resources:
         limits:
