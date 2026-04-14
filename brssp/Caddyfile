@@ -1,7 +1,8 @@
 :80 {
 	basicauth {
-		# Generate with: docker run --rm caddy:2-alpine caddy hash-password --plaintext 'yourpassword'
-		user REPLACE_WITH_HASHED_PASSWORD
+		# Generate hash with: docker run --rm caddy:2-alpine caddy hash-password --plaintext 'yourpassword'
+		# Set BRSSP_USER and BRSSP_PASSWORD_HASH in .env
+		{$BRSSP_USER} {$BRSSP_PASSWORD_HASH}
 	}
 
 	reverse_proxy brssp.security.science:8332 {
