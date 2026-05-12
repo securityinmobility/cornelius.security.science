@@ -1,6 +1,7 @@
 services:
   brssp:
     image: ghcr.io/hullrich/brssp:latest
+    profiles: ["disabled"]  # enable/disable deployment
     restart: always
     ports:
       - "8332:8332"
@@ -14,6 +15,7 @@ services:
 
   caddy:
     image: caddy:2-alpine
+    profiles: ["disabled"]  # enable/disable deployment
     restart: always
     networks:
       - web
