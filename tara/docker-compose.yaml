@@ -4,6 +4,8 @@ services:
     restart: always
     volumes:
       - ./tara:/app/Data
+    networks:
+      - web
     deploy:
       resources:
         limits:
