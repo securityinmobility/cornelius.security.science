@@ -1,0 +1,25 @@
+services:
+  brssp:
+    image: ghcr.io/tara-tool-thi/tara-tool:latest
+    restart: always
+    volumes:
+      - ./tara:/app/Data
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: "1g"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.tara.rule=Host(`tara.security.science`)"
+      - "traefik.http.routers.tara.entrypoints=https"
+      - "traefik.http.routers.tara.tls=true"
+      - "traefik.http.routers.tara.tls.certresolver=le"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ConnectionStrings__DefaultConnection=DataSource=/app/Data/app.db;Cache=Shared
+
+networks:
+  web:
+    external: true
