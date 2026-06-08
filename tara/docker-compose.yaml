@@ -1,5 +1,5 @@
 services:
-  brssp:
+  tara:
     image: ghcr.io/tara-tool-thi/tara-tool:latest
     restart: always
     volumes:
