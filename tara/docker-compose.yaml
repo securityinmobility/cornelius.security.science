@@ -1,6 +1,6 @@
 services:
   tara:
-    image: ghcr.io/tara-tool-thi/tara-tool:latest
+    image: ghcr.io/tara-tool-thi/thiara:latest
     restart: always
     volumes:
       - ./tara:/app/Data
