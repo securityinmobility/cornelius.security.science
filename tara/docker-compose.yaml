@@ -4,6 +4,7 @@ services:
     restart: always
     volumes:
       - ./tara:/app/Data
+      - ./imprint.html:/app/wwwroot/imprint.html
     networks:
       - web
     deploy:
