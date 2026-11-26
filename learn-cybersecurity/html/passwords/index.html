@@ -49,7 +49,7 @@
     }
     .info .pop p { margin: 0 0 6px; } .info .pop p:last-child { margin: 0; }
 
-    /* ── the website (left) ── */
+    /* the website (left) */
     .browser { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
     .urlbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--muted); }
     .urlbar .dots { display: flex; gap: 5px; } .urlbar .dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); display: block; }
@@ -81,7 +81,7 @@
     .welcome h3 { margin: 8px 0 18px; font-size: 1.3rem; }
     .ghost { font-family: inherit; font-size: 15px; font-weight: 600; border: 1.5px solid var(--line); background: none; color: var(--text); border-radius: 8px; padding: 9px 18px; cursor: pointer; }
 
-    /* ── the server (right) ── */
+    /* the server (right) */
     .methods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
     .methods button {
       font-family: inherit; font-size: 15px; font-weight: 600; text-align: left; padding: 12px 14px; border-radius: 10px; cursor: pointer;
@@ -131,7 +131,7 @@
     .small-btn.danger:hover { background: var(--bad); color: var(--bg); }
     .small-btn:disabled { opacity: .5; cursor: progress; }
 
-    /* ── 2FA ── */
+    /* 2FA */
     .tfa-status { margin: 0 0 16px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
     .tfa-status .on { color: var(--accent); font-weight: 700; }
     .tfa-status .off { color: var(--muted); }
@@ -199,7 +199,7 @@
     .atk-log { margin-top: 10px; padding: 10px 14px; border-radius: 8px; background: var(--surface);
       border-left: 4px solid var(--bad); display: grid; gap: 6px; font-size: 15px; }
 
-    /* ── walkthrough ── */
+    /* walkthrough */
     .tour-start { margin-top: 8px; font: inherit; font-size: 15px; color: var(--muted); background: none; border: 0; padding: 0; cursor: pointer; }
     .tour-start b { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
     .tour {
@@ -298,7 +298,7 @@
     </div>
 
     <div class="split">
-      <!-- ───────────── what the user sees ───────────── -->
+      <!-- what the user sees -->
       <section class="panel">
         <div class="panel-head">
           <h2>What you see</h2>
@@ -383,7 +383,7 @@
         </div>
       </section>
 
-      <!-- ───────────── what the server stores ───────────── -->
+      <!-- what the server stores -->
       <section class="panel">
         <div class="panel-head">
           <h2>What the server stores</h2>
@@ -454,7 +454,7 @@
 (function () {
   'use strict';
 
-  /* ── SHA-256 (synchronous, no dependencies) ─────────────────────────── */
+  /* SHA-256 (synchronous, no dependencies) */
   var K = [], H0 = [];
   (function () {
     function isPrime(n) { for (var f = 2; f * f <= n; f++) if (n % f === 0) return false; return true; }
@@ -499,7 +499,7 @@
 
   function hash(s) { return sha256(s); }
 
-  /* ── TOTP (2FA codes, RFC 6238): SHA-1, HMAC, Base32 ───────────────── */
+  /* TOTP (2FA codes, RFC 6238): SHA-1, HMAC, Base32 */
   function sha1(msg) { // msg: Uint8Array -> Uint8Array(20)
     var len = msg.length, total = ((len + 9 + 63) >> 6) << 6;
     var buf = new Uint8Array(total); buf.set(msg); buf[len] = 0x80;
@@ -560,7 +560,7 @@
     return ('00000' + (bin % 1000000)).slice(-6);
   }
   function randomSecret() { var b = new Uint8Array(10); crypto.getRandomValues(b); return base32Encode(b); }
-  /* ── end TOTP */
+  /* end TOTP */
 
   function randomSalt() {
     var b = new Uint8Array(4); crypto.getRandomValues(b);
@@ -571,7 +571,7 @@
   function fullBox(hex) { return '<span class="f"><span class="lbl">Full hash</span>' + hex.match(/.{1,8}/g).join(' ') + '</span>'; }
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
 
-  /* ── state ──────────────────────────────────────────────────────────── */
+  /* state */
   // Demo only: we keep the typed password in memory so the table can be
   // re-drawn for every storage method. A real server never keeps it.
   var SEED = [['alice', '123456'], ['bob', 'sunshine'], ['carol', '123456'], ['dave', 'Tr0ub4dor&3']];
@@ -593,7 +593,7 @@
   }
   function find(name) { for (var i = 0; i < users.length; i++) if (users[i].name === name) return users[i]; return null; }
 
-  /* ── elements ───────────────────────────────────────────────────────── */
+  /* elements */
   var $ = function (id) { return document.getElementById(id); };
   var elUser = $('username'), elPw = $('password'), elMsg = $('msg'), elSubmit = $('submit');
   var tabSignup = $('tabSignup'), tabLogin = $('tabLogin');
@@ -604,7 +604,7 @@
     salt: '<p><b>Hash + salt:</b> every user gets a random “salt” that is mixed in before hashing.</p><p>Now the same password gives a different stored value for every user. The salt itself is not secret.</p><p>The 2FA secret can\'t be hashed, because the server needs it to compute codes. So it is locked (encrypted, 🔒). The key is kept outside the database, so a stolen table alone is useless.</p>'
   };
 
-  /* ── rendering ──────────────────────────────────────────────────────── */
+  /* rendering */
   // 2FA column: the secret is readable on the careless plain-text server,
   // otherwise it is shown as encrypted (it can't be hashed: the server needs it to make codes).
   function tfaCell(u) {
@@ -722,7 +722,7 @@
     prevLive = value;
   }
 
-  /* ── attack: guess common passwords against the stolen table ─────────── */
+  /* attack: guess common passwords against the stolen table */
   // The 25 guesses the "attacker" tries, taken from lists of the most common passwords.
   var WORDLIST = ['123456', 'password', '123456789', '12345678', '12345', 'qwerty', 'abc123', '111111',
     '1234567', 'iloveyou', 'sunshine', 'princess', 'admin', 'welcome', 'football', 'monkey', 'letmein',
@@ -783,7 +783,7 @@
     '<p>Someone who only stole your password doesn\'t have the secret, so they can\'t make the code.</p>' +
     '<p>You can also scan the QR code with a real authenticator app. Delete the CampusHub entry afterwards.</p>';
 
-  /* ── 2FA state and views ────────────────────────────────────────────── */
+  /* 2FA state and views */
   var tfa = null; // { kind: 'setup' | 'login', user, secret }
 
   function fmtCode(c) { return c.slice(0, 3) + ' ' + c.slice(3); }
@@ -947,7 +947,7 @@
   }
   setInterval(tick, 1000);
 
-  /* ── attacker tries the cracked passwords on the login page ─────────── */
+  /* attacker tries the cracked passwords on the login page */
   function attackLogin(name) {
     if (!attack || !(name in attack.cracked)) return;
     var token = {};
@@ -1099,7 +1099,7 @@
     renderTfaStatus();
   }
 
-  /* ── actions ────────────────────────────────────────────────────────── */
+  /* actions */
   function submit() {
     var name = elUser.value.trim().toLowerCase(), pw = elPw.value;
     if (!name || !pw) { showMsg('Please fill in both fields.', 'err'); return; }
@@ -1182,7 +1182,7 @@
     document.querySelectorAll('details.info[open]').forEach(function (d) { if (!d.contains(e.target)) d.open = false; });
   });
 
-  /* ── walkthrough ────────────────────────────────────────────────────── */
+  /* walkthrough */
   // Each step points at part of the page. Steps with `wait` move on by themselves
   // once the visitor has done the action; the others have a Next button.
   var TOUR = [

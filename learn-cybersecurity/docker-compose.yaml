@@ -7,6 +7,7 @@ services:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     networks:
       - web
+      - phinder
     # nginx access log is disabled in nginx.conf; additionally keep Docker from
     # persisting any container output (error lines can contain client IPs).
     logging:
@@ -24,8 +25,39 @@ services:
       - "traefik.http.routers.learn-cybersecurity.tls.certresolver=le"
       - "traefik.http.routers.learn-cybersecurity.middlewares=learn-cybersecurity-gzip"
       - "traefik.http.middlewares.learn-cybersecurity-gzip.compress=true"
+      # live game updates (Server-Sent Events) must not be buffered by gzip
+      - "traefik.http.middlewares.learn-cybersecurity-gzip.compress.excludedcontenttypes=text/event-stream"
       - "traefik.http.services.learn-cybersecurity.loadbalancer.server.port=80"
+
+  # Phinder online rooms. Only reachable through nginx (/api/), no own Traefik route.
+  # Keeps everything in memory: no database, no volume, no logs.
+  learn-cybersecurity-phinder:
+    image: node:22-alpine
+    restart: always
+    user: node
+    working_dir: /app
+    command: ["node", "server.js"]
+    environment:
+      - CARDS_PATH=/cards/cards.js
+    volumes:
+      - ./phinder-server:/app:ro
+      - ./html/phinder:/cards:ro
+    read_only: true
+    networks:
+      phinder:
+        aliases:
+          - phinder
+    logging:
+      driver: "none"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: '0.1g'
 
 networks:
   web:
     external: true
+  # internal only: the Phinder server has no internet access
+  phinder:
+    internal: true
