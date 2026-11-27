@@ -1,0 +1,1303 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Behind the Login</title>
+  <script src="/assets/theme.js"></script>
+  <script src="/assets/qrcode.js"></script>
+  <link rel="stylesheet" href="/assets/site.css">
+  <style>
+    :root { --warn: #b45309; --warn-bg: #fef3c7; --bad: #b91c1c; --code-bg: #ffffff; }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) { --warn: #fbbf24; --warn-bg: #3a2a07; --bad: #f87171; --code-bg: #0b0d0c; }
+    }
+    :root[data-theme="dark"] { --warn: #fbbf24; --warn-bg: #3a2a07; --bad: #f87171; --code-bg: #0b0d0c; }
+
+    main.app { display: block; text-align: left; padding: 32px 0 48px; }
+    .mono { font-family: ui-monospace, "Cascadia Mono", Consolas, "Liberation Mono", monospace; }
+
+    .page-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; margin-bottom: 24px; }
+    .page-head h1 { font-size: clamp(1.8rem, 3.6vw, 2.4rem); margin: 0; max-width: none; }
+    .hint {
+      margin: 0; display: inline-flex; align-items: center; gap: 10px;
+      padding: 10px 16px; border-radius: 10px; border: 2px solid var(--warn);
+      background: var(--warn-bg); color: var(--text); font-size: 16px; font-weight: 700;
+    }
+    .hint .icon { font-size: 22px; line-height: 1; }
+
+    .split { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 24px; align-items: start; }
+    .split.stacked { grid-template-columns: 1fr; max-width: 900px; margin: 0 auto; }
+    .split.stacked .browser { max-width: 520px; margin-left: auto; margin-right: auto; }
+    @media (max-width: 900px) { .split { grid-template-columns: 1fr; } .layout-btn { display: none; } }
+    .layout-btn { margin: 8px 0 0 14px; font: inherit; font-size: 14px; color: var(--muted); background: none; border: 1px solid var(--line); border-radius: 8px; padding: 2px 10px; cursor: pointer; }
+    .layout-btn:hover { color: var(--text); border-color: var(--accent); }
+
+    .panel { background: var(--surface); border-radius: 14px; padding: 20px; }
+    .panel-head { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+    .panel-head h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0; }
+
+    /* ⓘ info popovers */
+    .info { position: relative; display: inline-block; }
+    .info summary {
+      list-style: none; cursor: pointer; width: 20px; height: 20px; border-radius: 50%;
+      display: grid; place-items: center; font: 700 12px/1 Georgia, serif; font-style: italic;
+      color: var(--muted); border: 1.5px solid var(--muted); user-select: none;
+    }
+    .info summary::-webkit-details-marker { display: none; }
+    .info[open] summary, .info summary:hover { color: var(--accent); border-color: var(--accent); }
+    .info .pop {
+      position: absolute; z-index: 10; top: 28px; left: -8px; width: min(340px, 80vw);
+      background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 10px;
+      padding: 12px 14px; font-size: 14.5px; line-height: 1.45; box-shadow: 0 8px 24px rgba(0,0,0,.18);
+    }
+    .info .pop p { margin: 0 0 6px; } .info .pop p:last-child { margin: 0; }
+
+    /* the website (left) */
+    .browser { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+    .urlbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+    .urlbar .dots { display: flex; gap: 5px; } .urlbar .dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); display: block; }
+    .urlbar .addr { flex: 1; background: var(--surface); border-radius: 6px; padding: 3px 10px; }
+    .site { padding: 24px; }
+    .brand { font-weight: 800; font-size: 22px; margin-bottom: 18px; }
+    .brand span { color: var(--accent); }
+
+    .tabs { display: flex; gap: 4px; background: var(--surface); border-radius: 10px; padding: 4px; margin-bottom: 18px; }
+    .tabs button { flex: 1; font-family: inherit; font-size: 15px; font-weight: 600; border: 0; border-radius: 7px; padding: 8px; cursor: pointer; background: transparent; color: var(--muted); }
+    .tabs button[aria-selected="true"] { background: var(--bg); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+
+    label { display: block; font-size: 14px; font-weight: 600; margin: 0 0 6px; }
+    .field { margin-bottom: 14px; }
+    input[type=text], input[type=password] {
+      width: 100%; font: inherit; font-size: 16px; padding: 10px 12px; border-radius: 8px;
+      border: 1.5px solid var(--line); background: var(--bg); color: var(--text);
+    }
+    input:focus { outline: none; border-color: var(--accent); }
+    .pw { position: relative; }
+    .pw input { padding-right: 64px; }
+    .pw button { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); font-family: inherit; font-size: 13px; font-weight: 600; border: 0; background: none; color: var(--muted); cursor: pointer; padding: 6px; }
+    .primary { width: 100%; font-family: inherit; font-size: 16px; font-weight: 700; border: 0; border-radius: 8px; padding: 12px; cursor: pointer; background: var(--accent); color: var(--accent-text); margin-top: 4px; }
+    .primary:hover { filter: brightness(1.08); }
+    .msg { min-height: 24px; margin: 12px 0 0; font-size: 15px; font-weight: 600; }
+    .msg.ok { color: var(--accent); } .msg.err { color: var(--bad); }
+    .welcome { text-align: center; padding: 20px 0 8px; }
+    .welcome .big { font-size: 40px; }
+    .welcome h3 { margin: 8px 0 18px; font-size: 1.3rem; }
+    .ghost { font-family: inherit; font-size: 15px; font-weight: 600; border: 1.5px solid var(--line); background: none; color: var(--text); border-radius: 8px; padding: 9px 18px; cursor: pointer; }
+
+    /* the server (right) */
+    .muted-note { color: var(--muted); font-size: 13.5px; }
+    .methods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+    .methods button {
+      font-family: inherit; font-size: 15px; font-weight: 600; text-align: left; padding: 12px 14px; border-radius: 10px; cursor: pointer;
+      background: var(--bg); color: var(--text); border: 2px solid var(--line);
+    }
+    .methods button small { display: block; font-weight: 400; font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+    .methods button[aria-pressed="true"] { border-color: var(--accent); }
+    .methods button[aria-pressed="true"] small { color: var(--accent); }
+
+    .flow { background: var(--bg); border-radius: 10px; padding: 16px; margin-bottom: 16px; min-height: 172px; }
+    .flow-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+    .flow .title { font-size: 13px; color: var(--muted); }
+    .flow .title .live { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-right: 8px; }
+    .flow .title .live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: pulse 1.2s infinite; }
+    @keyframes pulse { 50% { opacity: .25; } }
+    .result { margin-top: 12px; padding: 12px 14px; border-radius: 8px; background: var(--surface); font-size: 17px; line-height: 1.6; word-break: break-all; }
+    .result .lbl { display: block; font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 2px; word-break: normal; }
+    .result .grp { margin-right: .45em; }
+    .result .val.changed { animation: chg .8s ease-out; }
+    @keyframes chg { from { color: var(--accent); text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 60%, transparent); } }
+    .muted { color: var(--muted); }
+    .flow .empty { color: var(--muted); font-size: 15px; }
+    .pipe { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; font-size: 15px; }
+    .chip { padding: 5px 10px; border-radius: 6px; background: var(--surface); white-space: nowrap; }
+    .chip.salt { background: #dbeafe; color: #1e3a8a; }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .chip.salt { background: #172554; color: #bfdbfe; } }
+    :root[data-theme="dark"] .chip.salt { background: #172554; color: #bfdbfe; }
+    .machine { padding: 4px 10px; border-radius: 6px; border: 1.5px dashed var(--muted); color: var(--text); font-weight: 600; white-space: nowrap; text-align: center; line-height: 1.25; }
+    .machine small { display: block; font-weight: 400; font-size: 11.5px; color: var(--muted); }
+    .methods-label { font-size: 14px; color: var(--muted); margin: -4px 0 8px; display: flex; align-items: center; gap: 8px; }
+    .steps { list-style: none; counter-reset: s; margin: 0; padding: 0; display: grid; gap: 10px; font-size: 15.5px; }
+    .steps li { counter-increment: s; display: flex; gap: 12px; align-items: baseline; }
+    .steps li::before { content: counter(s); flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: var(--accent-text); font-weight: 800; font-size: 13px; display: grid; place-items: center; transform: translateY(-1px); }
+    .arrow { color: var(--muted); }
+    .verdict { font-weight: 700; } .verdict.ok { color: var(--accent); } .verdict.err { color: var(--bad); }
+    .compare { margin-top: 10px; font-size: 14px; color: var(--muted); }
+
+    .db { background: var(--bg); border-radius: 10px; }
+    .db-table { border-radius: 0 0 10px 10px; }
+    .info.right .pop { left: auto; right: -8px; }
+    .db-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+    .db-head .name { font-size: 14px; font-weight: 700; }
+    .db-head .name span { color: var(--muted); font-weight: 400; }
+    .small-btn { font-family: inherit; font-size: 13px; font-weight: 600; border: 1.5px solid var(--line); background: none; color: var(--muted); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+    .small-btn:hover { color: var(--text); }
+    .small-btn.danger { color: var(--bad); border-color: var(--bad); }
+    .small-btn.danger:hover { background: var(--bad); color: var(--bg); }
+    .small-btn:disabled { opacity: .5; cursor: progress; }
+
+    /* 2FA */
+    .tfa-status { margin: 0 0 16px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .tfa-status .on { color: var(--accent); font-weight: 700; }
+    .tfa-status .off { color: var(--muted); }
+    .tfa-status .primary { width: auto; padding: 10px 22px; margin: 0; }
+    .v-title { margin: 0 0 8px; font-size: 1.2rem; }
+    .v-sub { margin: 0 0 14px; color: var(--muted); font-size: 15px; }
+    .mini-steps { margin: 0 0 14px; padding-left: 20px; color: var(--muted); font-size: 14.5px; }
+    .mini-steps li { margin-bottom: 2px; }
+    .qr-box { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-bottom: 14px; }
+    .qr { background: #fff; padding: 8px; border-radius: 8px; line-height: 0; }
+    .qr svg, .qr img { display: block; width: 168px; height: 168px; }
+    .qr-key { font-size: 13px; color: var(--muted); }
+    .code-in { font-size: 22px !important; letter-spacing: .25em; text-align: center; }
+    .btn-row { display: flex; gap: 10px; }
+    .btn-row .primary { flex: 1; margin: 0; }
+    .phone {
+      display: flex; align-items: center; gap: 14px; margin: 0 0 14px; padding: 12px 14px;
+      border: 2px solid var(--line); border-radius: 16px; background: var(--surface);
+    }
+    .phone .ph-icon { font-size: 26px; }
+    .phone .ph-main { flex: 1; min-width: 0; }
+    .phone .ph-lbl { font-size: 12px; color: var(--muted); }
+    .phone .ph-code { font-size: 26px; font-weight: 700; letter-spacing: .06em; color: var(--accent); line-height: 1.2; }
+    .phone .ph-row { display: flex; align-items: center; gap: 12px; }
+    .phone .copy-btn { flex: none; font: inherit; font-size: 13px; font-weight: 700; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--text); cursor: pointer; }
+    .phone .copy-btn:hover { border-color: var(--accent); }
+    .ring {
+      flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+      font-size: 12px; font-weight: 700; color: var(--muted);
+      background: radial-gradient(var(--surface) 58%, transparent 60%), conic-gradient(var(--accent) var(--p), var(--line) 0);
+    }
+    .tfa-grid { display: grid; grid-template-columns: auto auto auto auto auto 1fr; gap: 8px 10px; align-items: center; justify-items: start; font-size: 15px; }
+    .link-btn { font: inherit; font-weight: 600; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+    .calc { margin: 0; padding-left: 22px; display: grid; gap: 10px; font-size: 14.5px; line-height: 1.5; }
+    .calc .step-t { display: block; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+    .calc li::marker { font-weight: 700; color: var(--accent); }
+    .hexline { margin-top: 4px; padding: 6px 10px; border-radius: 6px; background: var(--surface); font-size: 14px; word-spacing: .15em; }
+    .hl { background: color-mix(in srgb, var(--accent) 28%, transparent); color: var(--text); border-radius: 3px; font-weight: 700; }
+    .hl-off { color: var(--bad); font-weight: 700; }
+    .tfa-grid .who { font-weight: 700; white-space: nowrap; margin-right: 4px; }
+    .tfa-grid .h { font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: -4px; }
+    .tfa-grid .machine { padding: 4px 9px; }
+    .chip.time { background: var(--surface); }
+    .chip.code { font-weight: 700; color: var(--accent); font-size: 16px; }
+    th.c-tfa { width: 104px; }
+    .tfa-cell { font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+    .tfa-cell.enc { color: var(--accent); font-weight: 600; }
+    .tfa-cell.open { color: var(--bad); font-weight: 700; }
+
+    /* attacker view */
+    .flow .title .live.atk { color: var(--bad); }
+    .flow .title .live.atk::before { animation: none; }
+    .flow .title .live.atk.running::before { animation: pulse .6s infinite; }
+    .track { height: 6px; background: var(--surface); border-radius: 3px; overflow: hidden; margin: 14px 0 6px; }
+    .track div { height: 100%; background: var(--bad); transition: width .12s linear; }
+    .stats { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; font-size: 14px; color: var(--muted); }
+    .stats b { color: var(--text); }
+    .summary { font-size: 17px; font-weight: 700; margin: 12px 0 2px; }
+    .summary.bad { color: var(--bad); }
+    .sub { font-size: 14.5px; color: var(--muted); margin: 0; }
+    th.c-crk { width: 158px; }
+    .pill-crk { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: middle;
+      padding: 1px 9px; border-radius: 999px; font-weight: 700; font-size: 14px; white-space: nowrap;
+      color: var(--bad); background: color-mix(in srgb, var(--bad) 16%, transparent); }
+    .safe { color: var(--accent); font-size: 14px; font-weight: 600; white-space: nowrap; }
+    .atk-try { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 12px 0 0; }
+    .atk-lbl { font-size: 14px; font-weight: 600; margin-right: 4px; }
+    .atk-log { margin-top: 10px; padding: 10px 14px; border-radius: 8px; background: var(--surface);
+      border-left: 4px solid var(--bad); display: grid; gap: 6px; font-size: 15px; }
+
+    /* walkthrough */
+    .tour-start { margin-top: 8px; font: inherit; font-size: 15px; color: var(--muted); background: none; border: 0; padding: 0; cursor: pointer; }
+    .tour-start b { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+    .tour {
+      position: fixed; z-index: 50; left: 24px; bottom: 24px; width: min(380px, calc(100vw - 32px));
+      background: var(--bg); color: var(--text); border: 2px solid var(--accent); border-radius: 14px;
+      padding: 16px 18px; box-shadow: 0 12px 40px rgba(0,0,0,.35);
+    }
+    .tour[hidden] { display: none; }
+    @media (max-width: 600px) { .tour { left: 16px; bottom: 16px; } }
+    .tour-top { display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--accent); font-weight: 700; }
+    .tour-x { background: none; border: 0; color: var(--muted); font-size: 16px; cursor: pointer; padding: 2px 4px; }
+    .tour-text { margin: 8px 0 14px; font-size: 16px; line-height: 1.5; }
+    .tour-shade { position: fixed; inset: 0; z-index: 49; background: rgba(0,0,0,.55); }
+    .tour-shade[hidden] { display: none; }
+    .tour.final { left: 50%; top: 50%; bottom: auto; transform: translate(-50%, -50%); width: min(620px, calc(100vw - 32px)); padding: 24px 28px; max-height: calc(100vh - 32px); overflow: auto; }
+    .tk-head { display: block; font-size: 1.4rem; font-weight: 800; margin-bottom: 16px; }
+    .takeaways { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+    .takeaways li { display: flex; gap: 16px; align-items: flex-start; background: var(--surface); border-radius: 12px; padding: 14px 18px; }
+    .takeaways .ic { font-size: 34px; line-height: 1; }
+    .takeaways h3 { margin: 0 0 4px; font-size: 1.25rem; }
+    .takeaways p { margin: 0; color: var(--muted); font-size: 15.5px; }
+    .tour-nav { display: flex; align-items: center; gap: 10px; }
+    .tour-nav .primary { width: auto; margin: 0 0 0 auto; padding: 9px 20px; }
+    .tour-nav .ghost { padding: 8px 14px; }
+    .tour-wait { margin-left: auto; font-size: 14px; color: var(--muted); font-style: italic; }
+    .tour-wait[hidden], .tour-nav button[hidden] { display: none; }
+    .tour-hl { outline: 3px solid var(--accent) !important; outline-offset: 4px; border-radius: 10px;
+      box-shadow: 0 0 0 9px color-mix(in srgb, var(--accent) 22%, transparent) !important; transition: outline-color .2s; }
+
+    /* fixed layout: fixed-width columns for user/salt (and later 2FA), the rest goes to the hash */
+    table { width: 100%; border-collapse: collapse; font-size: 15px; table-layout: fixed; }
+    th.c-user { width: 120px; } th.c-salt { width: 112px; }
+    td.user { overflow: hidden; text-overflow: ellipsis; }
+    td.stored .s { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; padding: 10px 16px 6px; }
+    td { padding: 9px 16px; border-top: 1px solid var(--line); vertical-align: middle; }
+    td.user { font-weight: 600; white-space: nowrap; }
+    td .val { word-break: break-all; }
+    /* hashes: short in the table, full hash in a floating box on hover (or tap) */
+    td.stored, .hov { position: relative; }
+    .hov { cursor: default; text-decoration: underline dotted; text-underline-offset: 3px; }
+    .val .f, .hov .f {
+      display: none; position: absolute; z-index: 20; top: calc(100% - 6px); left: 8px;
+      width: 330px; padding: 10px 12px; border-radius: 8px; white-space: normal; word-spacing: .2em;
+      background: var(--bg); color: var(--text); border: 1px solid var(--line);
+      box-shadow: 0 8px 24px rgba(0,0,0,.25); font-size: 14px; line-height: 1.6; word-break: normal;
+    }
+    .f .lbl { display: block; font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+
+    td.stored:hover .val .f, td.tfa-td:hover .val .f, .hov:hover .f { display: block; }
+    td.tfa-td { position: relative; }
+    .val .f.f-right { left: auto; right: 8px; width: auto; white-space: nowrap; }
+    .hov .f { font-weight: 400; text-decoration: none; top: calc(100% + 6px); left: -8px; }
+    /* rounded bottom corners without clipping the floating box */
+    .db-table:has(.legend[hidden]) tbody tr:last-child td:first-child { border-bottom-left-radius: 10px; }
+    .db-table:has(.legend[hidden]) tbody tr:last-child td:last-child { border-bottom-right-radius: 10px; }
+    /* one colour per group of identical stored values */
+    /* order: amber, pink, violet, teal, orange (no blue: that is the salt colour) */
+    .g0 { --g: #b45309; --gbg: #fef3c7; } .g1 { --g: #be185d; --gbg: #fce7f3; } .g2 { --g: #6d28d9; --gbg: #ede9fe; }
+    .g3 { --g: #0f766e; --gbg: #ccfbf1; } .g4 { --g: #c2410c; --gbg: #ffedd5; }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) .g0 { --g: #fbbf24; --gbg: #3a2a07; } :root:not([data-theme="light"]) .g1 { --g: #f472b6; --gbg: #42102b; }
+      :root:not([data-theme="light"]) .g2 { --g: #a78bfa; --gbg: #2a1458; } :root:not([data-theme="light"]) .g3 { --g: #2dd4bf; --gbg: #06302b; }
+      :root:not([data-theme="light"]) .g4 { --g: #fb923c; --gbg: #3d1a06; }
+    }
+    :root[data-theme="dark"] .g0 { --g: #fbbf24; --gbg: #3a2a07; } :root[data-theme="dark"] .g1 { --g: #f472b6; --gbg: #42102b; }
+    :root[data-theme="dark"] .g2 { --g: #a78bfa; --gbg: #2a1458; } :root[data-theme="dark"] .g3 { --g: #2dd4bf; --gbg: #06302b; }
+    :root[data-theme="dark"] .g4 { --g: #fb923c; --gbg: #3d1a06; }
+    tr.dup td.stored { box-shadow: inset 4px 0 0 var(--g); background: var(--gbg); }
+    .legend .grp-line { display: flex; align-items: baseline; gap: 8px; color: var(--g); }
+    .legend .grp-line + .grp-line { margin-top: 4px; }
+    .legend .sw { flex: none; width: 10px; height: 10px; border-radius: 2px; background: var(--g); transform: translateY(1px); }
+    .legend .grp-line .names { color: var(--text); font-weight: 400; }
+    tr.flash td { animation: flash 1.2s ease-out; }
+    tr.active td.user::after { content: " ←"; color: var(--accent); }
+    @keyframes flash { from { background: color-mix(in srgb, var(--accent) 30%, transparent); } }
+    .legend { padding: 10px 16px; border-top: 1px solid var(--line); font-size: 14px; color: var(--warn); font-weight: 600; }
+    .legend[hidden] { display: none; }
+  </style>
+</head>
+<body>
+  <header class="bar">
+    <div class="wrap">
+      <a class="logo" href="/"><span>learn</span>.security.science</a>
+      <button class="theme-toggle" type="button">Light mode</button>
+    </div>
+  </header>
+
+  <main class="app wrap">
+    <div class="page-head">
+      <div>
+        <h1>Behind the Login</h1>
+        <button type="button" class="tour-start" id="tourStart">🧭 Don't know where to start? <b>Take the walkthrough</b></button>
+        <button type="button" class="layout-btn" id="layoutBtn">⇅ One below the other</button>
+      </div>
+      <p class="hint" role="note"><span class="icon" aria-hidden="true">⚠️</span>Please don't type your real passwords here.</p>
+    </div>
+
+    <div class="split">
+      <!-- what the user sees -->
+      <section class="panel">
+        <div class="panel-head">
+          <h2>What you see</h2>
+          <details class="info"><summary>i</summary><div class="pop">
+            <p>A normal login page. Create an account or log in as one of the existing users.</p>
+            <p>Everything runs only in your browser. Nothing you type is sent anywhere.</p>
+            <p><b>Still, never use your real passwords here, or on any page you don't fully trust.</b></p>
+          </div></details>
+        </div>
+
+        <div class="browser">
+          <div class="urlbar"><span class="dots"><i></i><i></i><i></i></span><span class="addr">campushub.example</span></div>
+          <div class="site">
+            <div class="brand">Campus<span>Hub</span></div>
+
+            <div id="authView">
+              <div class="tabs" role="tablist">
+                <button type="button" role="tab" id="tabSignup" aria-selected="true">Sign up</button>
+                <button type="button" role="tab" id="tabLogin" aria-selected="false">Log in</button>
+              </div>
+              <div class="field">
+                <label for="username">Username</label>
+                <input type="text" id="username" autocomplete="off" autocapitalize="off" spellcheck="false">
+              </div>
+              <div class="field">
+                <label for="password">Password</label>
+                <div class="pw">
+                  <input type="password" id="password" autocomplete="off">
+                  <button type="button" id="togglePw">Show</button>
+                </div>
+              </div>
+              <button type="button" class="primary" id="submit">Create account</button>
+              <p class="msg" id="msg"></p>
+            </div>
+
+            <div id="welcomeView" class="welcome" hidden>
+              <div class="big">👋</div>
+              <h3>Welcome, <span id="welcomeName"></span>!</h3>
+              <div id="tfaStatus" class="tfa-status"></div>
+              <button type="button" class="ghost" id="logout">Log out</button>
+            </div>
+
+            <!-- turn on 2FA: QR code + demo phone + confirm code -->
+            <div id="setupView" hidden>
+              <h3 class="v-title">Turn on 2FA</h3>
+              <ol class="mini-steps">
+                <li>Scan the QR code with an authenticator app, or use the demo phone below.</li>
+                <li>Type the 6-digit code to confirm.</li>
+              </ol>
+              <div class="qr-box">
+                <div id="qr" class="qr"></div>
+                <div class="qr-key">Key: <span class="mono" id="qrKey"></span></div>
+              </div>
+              <div class="phone" id="setupPhone"></div>
+              <div class="field">
+                <label for="setupCode">6-digit code</label>
+                <input type="text" id="setupCode" inputmode="numeric" autocomplete="off" maxlength="6" class="mono code-in">
+              </div>
+              <div class="btn-row">
+                <button type="button" class="primary" id="setupConfirm">Turn on 2FA</button>
+                <button type="button" class="ghost" id="setupCancel">Cancel</button>
+              </div>
+              <p class="msg" id="setupMsg"></p>
+            </div>
+
+            <!-- second login step for accounts with 2FA -->
+            <div id="codeView" hidden>
+              <h3 class="v-title">Two-factor check</h3>
+              <p class="v-sub">Password ✓. Now type the code from <b id="codeUser"></b>'s authenticator app.</p>
+              <div class="phone" id="loginPhone"></div>
+              <div class="field">
+                <label for="loginCode">6-digit code</label>
+                <input type="text" id="loginCode" inputmode="numeric" autocomplete="off" maxlength="6" class="mono code-in">
+              </div>
+              <div class="btn-row">
+                <button type="button" class="primary" id="codeSubmit">Verify</button>
+                <button type="button" class="ghost" id="codeCancel">Cancel</button>
+              </div>
+              <p class="msg" id="codeMsg"></p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- what the server stores -->
+      <section class="panel">
+        <div class="panel-head">
+          <h2>What the server stores</h2>
+          <details class="info"><summary>i</summary><div class="pop">
+            <p>Compare three servers with the same users. Each one stores passwords in a different way.</p>
+            <p>Imagine a hacker steals this table. What could they read?</p>
+            <p>A real server picks one method when you sign up. It can't switch later, because it never keeps your password.</p>
+          </div></details>
+        </div>
+
+        <div class="methods-label">Same users, but the server stores passwords as:
+          <details class="info"><summary>i</summary><div class="pop" id="dbInfo"></div></details></div>
+        <div class="methods">
+          <button type="button" data-method="plain" aria-pressed="true">Plain text<small>saved as typed</small></button>
+          <button type="button" data-method="hash" aria-pressed="false">Hash<small>scrambled</small></button>
+          <button type="button" data-method="salt" aria-pressed="false">Hash + salt<small>scrambled + random</small></button>
+        </div>
+
+        <div class="flow" id="flow">
+          <div class="flow-head">
+            <div class="title" id="flowTitle">What just happened</div>
+            <details class="info right"><summary>i</summary><div class="pop" id="flowInfo"></div></details>
+          </div>
+          <div id="flowBody"></div>
+        </div>
+
+        <div class="db">
+          <div class="db-head">
+            <div class="name">Database <span class="mono">users</span></div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <button type="button" class="small-btn danger" id="crack">🔓 Steal &amp; crack</button>
+              <button type="button" class="small-btn" id="reset">Reset</button>
+            </div>
+          </div>
+          <div class="db-table">
+            <table>
+              <thead><tr id="dbHeadRow"></tr></thead>
+              <tbody id="dbBody"></tbody>
+            </table>
+            <div class="legend" id="legend" hidden></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  </main>
+
+  <!-- walkthrough box (hidden until started) -->
+  <div class="tour-shade" id="tourShade" hidden></div>
+  <div class="tour" id="tour" hidden role="dialog" aria-live="polite" aria-label="Walkthrough">
+    <div class="tour-top"><span id="tourCount"></span><button type="button" class="tour-x" id="tourClose" aria-label="Close walkthrough">✕</button></div>
+    <div class="tour-text" id="tourText"></div>
+    <div class="tour-nav">
+      <button type="button" class="ghost" id="tourBack">Back</button>
+      <span class="tour-wait" id="tourWait">Waiting for you …</span>
+      <button type="button" class="primary" id="tourNext">Next</button>
+    </div>
+  </div>
+
+  <footer>
+    <div class="wrap">
+      <p>This site stores no personal data. No cookies, no tracking, no third-party resources.</p>
+      <p>Technische Hochschule Ingolstadt · <a href="https://www.thi.de/en/misc/imprint/">Imprint</a></p>
+    </div>
+  </footer>
+
+<script>
+(function () {
+  'use strict';
+
+  /* SHA-256 (synchronous, no dependencies) */
+  var K = [], H0 = [];
+  (function () {
+    function isPrime(n) { for (var f = 2; f * f <= n; f++) if (n % f === 0) return false; return true; }
+    function frac(x) { return ((x - Math.floor(x)) * 4294967296) | 0; }
+    for (var n = 2, c = 0; c < 64; n++) {
+      if (!isPrime(n)) continue;
+      if (c < 8) H0[c] = frac(Math.pow(n, 1 / 2));
+      K[c++] = frac(Math.pow(n, 1 / 3));
+    }
+  })();
+  function rotr(x, n) { return (x >>> n) | (x << (32 - n)); }
+  function sha256(str) {
+    var bytes = new TextEncoder().encode(str), len = bytes.length;
+    var total = ((len + 9 + 63) >> 6) << 6;
+    var buf = new Uint8Array(total); buf.set(bytes); buf[len] = 0x80;
+    var dv = new DataView(buf.buffer);
+    dv.setUint32(total - 8, Math.floor(len / 536870912));
+    dv.setUint32(total - 4, (len * 8) >>> 0);
+    var h = H0.slice(), W = new Array(64);
+    for (var i = 0; i < total; i += 64) {
+      for (var t = 0; t < 16; t++) W[t] = dv.getUint32(i + t * 4) | 0;
+      for (t = 16; t < 64; t++) {
+        var a15 = W[t - 15], a2 = W[t - 2];
+        var s0 = rotr(a15, 7) ^ rotr(a15, 18) ^ (a15 >>> 3);
+        var s1 = rotr(a2, 17) ^ rotr(a2, 19) ^ (a2 >>> 10);
+        W[t] = (W[t - 16] + s0 + W[t - 7] + s1) | 0;
+      }
+      var a = h[0], b = h[1], c = h[2], d = h[3], e = h[4], f = h[5], g = h[6], hh = h[7];
+      for (t = 0; t < 64; t++) {
+        var S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
+        var t1 = (hh + S1 + ((e & f) ^ (~e & g)) + K[t] + W[t]) | 0;
+        var S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
+        var t2 = (S0 + ((a & b) ^ (a & c) ^ (b & c))) | 0;
+        hh = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+      }
+      h[0] = (h[0] + a) | 0; h[1] = (h[1] + b) | 0; h[2] = (h[2] + c) | 0; h[3] = (h[3] + d) | 0;
+      h[4] = (h[4] + e) | 0; h[5] = (h[5] + f) | 0; h[6] = (h[6] + g) | 0; h[7] = (h[7] + hh) | 0;
+    }
+    return h.map(function (x) { return ('0000000' + (x >>> 0).toString(16)).slice(-8); }).join('');
+  }
+  window.__sha256 = sha256; // for testing in the console
+
+  function hash(s) { return sha256(s); }
+
+  /* TOTP (2FA codes, RFC 6238): SHA-1, HMAC, Base32 */
+  function sha1(msg) { // msg: Uint8Array -> Uint8Array(20)
+    var len = msg.length, total = ((len + 9 + 63) >> 6) << 6;
+    var buf = new Uint8Array(total); buf.set(msg); buf[len] = 0x80;
+    var dv = new DataView(buf.buffer);
+    dv.setUint32(total - 8, Math.floor(len / 536870912)); dv.setUint32(total - 4, (len * 8) >>> 0);
+    var h0 = 0x67452301, h1 = 0xEFCDAB89, h2 = 0x98BADCFE, h3 = 0x10325476, h4 = 0xC3D2E1F0, w = new Array(80);
+    for (var i = 0; i < total; i += 64) {
+      for (var t = 0; t < 16; t++) w[t] = dv.getUint32(i + t * 4) | 0;
+      for (t = 16; t < 80; t++) { var x = w[t - 3] ^ w[t - 8] ^ w[t - 14] ^ w[t - 16]; w[t] = (x << 1) | (x >>> 31); }
+      var a = h0, b = h1, c = h2, d = h3, e = h4;
+      for (t = 0; t < 80; t++) {
+        var f, k;
+        if (t < 20) { f = (b & c) | (~b & d); k = 0x5A827999; }
+        else if (t < 40) { f = b ^ c ^ d; k = 0x6ED9EBA1; }
+        else if (t < 60) { f = (b & c) | (b & d) | (c & d); k = 0x8F1BBCDC; }
+        else { f = b ^ c ^ d; k = 0xCA62C1D6; }
+        var tmp = (((a << 5) | (a >>> 27)) + f + e + k + w[t]) | 0;
+        e = d; d = c; c = (b << 30) | (b >>> 2); b = a; a = tmp;
+      }
+      h0 = (h0 + a) | 0; h1 = (h1 + b) | 0; h2 = (h2 + c) | 0; h3 = (h3 + d) | 0; h4 = (h4 + e) | 0;
+    }
+    var out = new Uint8Array(20), odv = new DataView(out.buffer);
+    [h0, h1, h2, h3, h4].forEach(function (v, j) { odv.setUint32(j * 4, v >>> 0); });
+    return out;
+  }
+  function hmacSha1(key, msg) {
+    if (key.length > 64) key = sha1(key);
+    var k = new Uint8Array(64); k.set(key);
+    var inner = new Uint8Array(64 + msg.length), outer = new Uint8Array(64 + 20);
+    for (var i = 0; i < 64; i++) { inner[i] = k[i] ^ 0x36; outer[i] = k[i] ^ 0x5c; }
+    inner.set(msg, 64); outer.set(sha1(inner), 64);
+    return sha1(outer);
+  }
+  var B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  function base32Encode(bytes) {
+    var bits = 0, val = 0, out = '';
+    for (var i = 0; i < bytes.length; i++) {
+      val = (val << 8) | bytes[i]; bits += 8;
+      while (bits >= 5) { out += B32[(val >>> (bits - 5)) & 31]; bits -= 5; }
+    }
+    if (bits > 0) out += B32[(val << (5 - bits)) & 31];
+    return out;
+  }
+  function base32Decode(str) {
+    var bits = 0, val = 0, out = [];
+    for (var i = 0; i < str.length; i++) {
+      val = (val << 5) | B32.indexOf(str[i]); bits += 5;
+      if (bits >= 8) { out.push((val >>> (bits - 8)) & 255); bits -= 8; }
+    }
+    return new Uint8Array(out);
+  }
+  // 6-digit code for a Base32 secret at time `ms` (30-second steps).
+  function totp(secret, ms) {
+    var counter = Math.floor(ms / 30000), msg = new Uint8Array(8), dv = new DataView(msg.buffer);
+    dv.setUint32(0, Math.floor(counter / 4294967296)); dv.setUint32(4, counter >>> 0);
+    var h = hmacSha1(base32Decode(secret), msg), o = h[19] & 15;
+    var bin = ((h[o] & 127) << 24) | (h[o + 1] << 16) | (h[o + 2] << 8) | h[o + 3];
+    return ('00000' + (bin % 1000000)).slice(-6);
+  }
+  function randomSecret() { var b = new Uint8Array(10); crypto.getRandomValues(b); return base32Encode(b); }
+  /* end TOTP */
+
+  function randomSalt() {
+    var b = new Uint8Array(4); crypto.getRandomValues(b);
+    return Array.prototype.map.call(b, function (x) { return ('0' + x.toString(16)).slice(-2); }).join('');
+  }
+  function short(hex) { return hex.slice(0, 12) + '…'; }
+  // Floating box with the full hash, shown on hover (see CSS .f).
+  function fullBox(hex) { return '<span class="f"><span class="lbl">Full hash</span>' + hex.match(/.{1,8}/g).join(' ') + '</span>'; }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
+
+  /* state */
+  // Demo only: we keep the typed password in memory so the table can be
+  // re-drawn for every storage method. A real server never keeps it.
+  var SEED = [['alice', '123456'], ['bob', 'sunshine'], ['carol', '123456'], ['dave', 'Tr0ub4dor&3']];
+  var users, method = 'plain', mode = 'signup', loggedIn = null, lastUser = null;
+
+  // tfa: the user's 2FA secret (Base32), or null when 2FA is off.
+  function makeUser(name, pw, salt) { return { name: name, pw: pw, salt: salt || randomSalt(), tfa: null }; }
+  var pendingSalt = randomSalt(); // salt the next new account will get (shown live while signing up)
+  var prevLive = '';              // last live value, to highlight which characters changed
+  function resetUsers() {
+    users = SEED.map(function (u) { return makeUser(u[0], u[1]); });
+    find('carol').tfa = randomSecret(); // carol already uses 2FA
+  }
+  function stored(u, m) {
+    m = m || method;
+    if (m === 'plain') return u.pw;
+    if (m === 'hash') return hash(u.pw);
+    return hash(u.salt + u.pw);
+  }
+  function find(name) { for (var i = 0; i < users.length; i++) if (users[i].name === name) return users[i]; return null; }
+
+  /* elements */
+  var $ = function (id) { return document.getElementById(id); };
+  var elUser = $('username'), elPw = $('password'), elMsg = $('msg'), elSubmit = $('submit');
+  var tabSignup = $('tabSignup'), tabLogin = $('tabLogin');
+
+  var DB_INFO = {
+    plain: '<p><b>Plain text:</b> the password is saved exactly as typed.</p><p>Whoever gets this table can log in as everyone, and try the same passwords on other websites.</p><p>This careless server even keeps the 2FA secret readable (🔑). Normally it is stored encrypted.</p>',
+    hash: '<p><b>Hash:</b> the password goes through a one-way function (SHA-256). The server only keeps the result.</p><p>Hover over a row to see the full hash.</p><p>But: the same password always gives the same hash. Look at alice and carol.</p><p>The 2FA secret can\'t be hashed, because the server needs it to compute codes. So it is locked (encrypted, 🔒). The key is kept outside the database.</p>',
+    salt: '<p><b>Hash + salt:</b> every user gets a random “salt” that is mixed in before hashing.</p><p>Now the same password gives a different stored value for every user. The salt itself is not secret.</p><p>The 2FA secret can\'t be hashed, because the server needs it to compute codes. So it is locked (encrypted, 🔒). The key is kept outside the database, so a stolen table alone is useless.</p>'
+  };
+
+  /* rendering */
+  // 2FA column: the secret is readable on the careless plain-text server,
+  // otherwise it is shown as encrypted (it can't be hashed: the server needs it to make codes).
+  function tfaCell(u) {
+    if (!u.tfa) return '<span class="tfa-cell muted">off</span>';
+    if (method === 'plain') return '<span class="val"><span class="tfa-cell open mono">🔑 ' + u.tfa + '</span>' +
+      '<span class="f f-right"><span class="lbl">2FA secret (readable!)</span>' + fmtSecret(u.tfa) + '</span></span>';
+    // Demo stand-in for the encrypted secret: looks like gibberish, can't be read without the key.
+    var locked = sha256('server-key|' + u.tfa).slice(0, 32).match(/.{1,8}/g).join(' ');
+    return '<span class="val"><span class="tfa-cell enc">🔒 on</span>' +
+      '<span class="f f-right"><span class="lbl">2FA secret, encrypted</span>' + locked +
+      '<span class="lbl" style="margin-top:6px">🔑 Key: not in the database</span></span></span>';
+  }
+
+  function renderDb(flashName) {
+    var withSalt = method === 'salt';
+    var withCrack = !!attack;
+    $('dbHeadRow').innerHTML = '<th class="c-user">Username</th>' + (withSalt ? '<th class="c-salt">Salt</th>' : '') +
+      '<th>' + (method === 'plain' ? 'Password' : 'Stored hash') + '</th>' +
+      '<th class="c-tfa">2FA</th>' +
+      (withCrack ? '<th class="c-crk">Cracked</th>' : '');
+
+    var values = users.map(function (u) { return stored(u); });
+    var count = {}; values.forEach(function (v) { count[v] = (count[v] || 0) + 1; });
+    // Groups of identical stored values, numbered in order of appearance.
+    var groupOf = {}, groups = [];
+    values.forEach(function (v, i) {
+      if (count[v] < 2) return;
+      if (!(v in groupOf)) { groupOf[v] = groups.length; groups.push({ value: v, names: [] }); }
+      groups[groupOf[v]].names.push(users[i].name);
+    });
+
+    $('dbBody').innerHTML = users.map(function (u, i) {
+      var v = values[i], dup = v in groupOf;
+      var cls = [dup ? 'dup g' + (groupOf[v] % 5) : '', u.name === flashName ? 'flash' : '', u.name === loggedIn ? 'active' : ''].join(' ');
+      var shown = method === 'plain' ? esc(v) : '<span class="s">' + v + '</span>' + fullBox(v);
+      return '<tr class="' + cls + '"><td class="user">' + esc(u.name) + '</td>' +
+        (withSalt ? '<td class="mono">' + u.salt + '</td>' : '') +
+        '<td class="stored mono"><span class="val">' + shown + '</span></td>' +
+        '<td class="tfa-td">' + tfaCell(u) + '</td>' +
+        (withCrack ? '<td>' + (attack.cracked[u.name] !== undefined
+          ? '<span class="pill-crk mono" title="' + esc(attack.cracked[u.name]) + '">🔓 ' + esc(attack.cracked[u.name]) + '</span>'
+          : (attack.done ? '<span class="safe">🔒 not found</span>' : '')) + '</td>' : '') +
+        '</tr>';
+    }).join('');
+
+    var legend = $('legend');
+    if (groups.length) {
+      legend.hidden = false;
+      legend.innerHTML = groups.map(function (g, i) {
+        var what = method === 'plain' ? 'Same password <span class="mono">' + esc(g.value) + '</span>:'
+                                      : 'Same hash <span class="mono hov">' + short(g.value) + fullBox(g.value) + '</span>:';
+        return '<div class="grp-line g' + (i % 5) + '"><span class="sw"></span><span>' + what +
+          ' <span class="names">' + g.names.map(esc).join(', ') + '</span></span></div>';
+      }).join('');
+    } else legend.hidden = true;
+
+    $('dbInfo').innerHTML = DB_INFO[method];
+    $('crack').disabled = !!attack && !attack.done;
+    document.querySelectorAll('.methods button').forEach(function (b) {
+      b.setAttribute('aria-pressed', b.dataset.method === method ? 'true' : 'false');
+    });
+  }
+
+  // Full value (hashes split into blocks of 8); the whole value flashes when it changed.
+  function valueHtml(value, prev, group) {
+    var inner = group
+      ? value.match(new RegExp('.{1,' + group + '}', 'g')).map(function (p) { return '<span class="grp">' + esc(p) + '</span>'; }).join('')
+      : esc(value);
+    return '<span class="val' + (value !== prev ? ' changed' : '') + '">' + inner + '</span>';
+  }
+
+  // Live view while the user is typing: the server's calculation, key by key.
+  function renderLive() {
+    var body = $('flowBody'), title = $('flowTitle');
+    var name = elUser.value.trim().toLowerCase(), pw = elPw.value;
+    var user = mode === 'login' ? find(name) : null;
+    var arrow = '<span class="arrow">→</span>';
+
+    title.innerHTML = '<span class="live">Live</span>' + (mode === 'signup' ? 'Sign up' : 'Log in') +
+      (name ? ' as ' + esc(name) : '');
+
+    var typed = '<span class="chip mono">"' + esc(pw) + '"</span>';
+    var pipe, value, label;
+    if (method === 'plain') {
+      pipe = typed + arrow + '<span class="machine">no change</span>' + arrow;
+      value = pw; label = 'Saved like this';
+    } else {
+      var salt = null;
+      if (method === 'salt') salt = mode === 'signup' ? pendingSalt : (user ? user.salt : null);
+      if (method === 'salt' && !salt) {
+        body.innerHTML = '<div class="pipe">' + typed + '</div><div class="compare">' +
+          (name ? 'No user called “' + esc(name) + '”, so the server has no salt to use.' : 'Type a username to look up its salt.') + '</div>';
+        prevLive = '';
+        return;
+      }
+      pipe = (salt ? '<span class="chip salt mono" title="salt">' + salt + '</span><span class="arrow">+</span>' : '') +
+        typed + arrow + '<span class="machine">⚙ hash function<small>SHA-256</small></span>' + arrow;
+      value = hash((salt || '') + pw); label = 'Hash';
+    }
+
+    var html = '<div class="pipe">' + pipe + '</div>' +
+      '<div class="result mono"><span class="lbl">' + label + '</span>' +
+      valueHtml(value, prevLive, method === 'plain' ? 0 : 8) + '</div>';
+
+    if (mode === 'login') {
+      if (!user) html += '<div class="compare">' + (name ? 'No user called “' + esc(name) + '”.' : 'Type a username to compare.') + '</div>';
+      else {
+        var ok = value === stored(user);
+        html += '<div class="compare">Saved for ' + esc(user.name) + ': <span class="mono">' +
+          (method === 'plain' ? esc(stored(user)) : short(stored(user))) + '</span> &nbsp;' +
+          '<span class="verdict ' + (ok ? 'ok">✓ matches' : 'err">✗ no match') + '</span></div>';
+      }
+    }
+    body.innerHTML = html;
+    prevLive = value;
+  }
+
+  /* attack: guess common passwords against the stolen table */
+  // The 25 guesses the "attacker" tries, taken from lists of the most common passwords.
+  var WORDLIST = ['123456', 'password', '123456789', '12345678', '12345', 'qwerty', 'abc123', '111111',
+    '1234567', 'iloveyou', 'sunshine', 'princess', 'admin', 'welcome', 'football', 'monkey', 'letmein',
+    'dragon', 'test', 'hello', 'passwort', 'hallo', 'qwertz', '000000', 'master'];
+  var attack = null;       // { cracked: {name: password}, i, calcs, guess, done, timer }
+  var showAttack = false;  // attacker view visible in the flow box
+
+  function stopAttack() {
+    if (attack && attack.timer) clearTimeout(attack.timer);
+    attack = null; showAttack = false;
+  }
+  function startAttack() {
+    stopAttack();
+    attack = { cracked: {}, i: 0, calcs: 0, guess: null, done: false, timer: null };
+    showAttack = true;
+    elPw.value = ''; prevLive = '';
+    if (method === 'plain') {
+      users.forEach(function (u) { attack.cracked[u.name] = u.pw; });
+      attack.done = true;
+      renderDb(); renderFlow();
+      return;
+    }
+    attackStep();
+  }
+  function attackStep() {
+    var A = attack;
+    if (!A) return;
+    if (A.i >= WORDLIST.length) { A.done = true; A.guess = null; renderDb(); renderFlow(); return; }
+    var g = WORDLIST[A.i++];
+    A.guess = g;
+    if (method === 'hash') {
+      // One hash per guess, compared with every row at once.
+      var h = hash(g); A.calcs++; A.lastHash = h;
+      users.forEach(function (u) { if (!(u.name in A.cracked) && stored(u) === h) A.cracked[u.name] = g; });
+    } else {
+      // Salted: the guess has to be hashed again with every user's own salt.
+      A.stepCalcs = 0;
+      users.forEach(function (u) {
+        if (u.name in A.cracked) return;
+        A.calcs++; A.stepCalcs++;
+        if (hash(u.salt + g) === stored(u)) A.cracked[u.name] = g;
+      });
+    }
+    renderDb(); renderFlow();
+    A.timer = setTimeout(attackStep, 160);
+  }
+
+  var FLOW_INFO = {
+    normal: '<p>Type a password on the left and watch the server work along, key by key.</p>' +
+      '<p>Change a single character and the whole hash looks completely different. The same input always gives the same hash.</p>',
+    attack: '<p>The attacker has a copy of the table. A hash can\'t be turned back into the password, so they <b>guess</b>: hash each guess the same way and compare.</p>' +
+      '<p>This demo only tries the 25 most common passwords. Real attackers try billions of guesses per second and also follow rules, like word + number or letters swapped for digits (Tr0ub4dor). Random passwords from a password manager follow no rule.</p>' +
+      '<p>2FA only protects this one site. A cracked password still works everywhere else it is reused.</p>'
+  };
+
+  FLOW_INFO.tfa = '<p>The QR code contains a <b>secret key</b>. Scanning it copies the secret to the phone, once.</p>' +
+    '<p>From then on, phone and server each compute the code from the secret and the current time (in 30-second steps). They never talk to each other.</p>' +
+    '<p>Someone who only stole your password doesn\'t have the secret, so they can\'t make the code.</p>' +
+    '<p>You can also scan the QR code with a real authenticator app. Delete the CampusHub entry afterwards.</p>';
+
+  /* 2FA state and views */
+  var tfa = null; // { kind: 'setup' | 'login', user, secret }
+
+  function fmtCode(c) { return c.slice(0, 3) + ' ' + c.slice(3); }
+  function clock(ms) { var d = new Date(ms); return [d.getHours(), d.getMinutes(), d.getSeconds()].map(function (x) { return ('0' + x).slice(-2); }).join(':'); }
+  function secsLeft(ms) { return 30 - Math.floor(ms / 1000) % 30; }
+  // Accept the current code and the one before/after (clocks are never perfectly in sync).
+  // which time step the code belongs to: 0 = current, -1 = the one before, 1 = the next one, null = wrong
+  function codeStep(secret, code) {
+    var now = Date.now();
+    if (totp(secret, now) === code) return 0;
+    if (totp(secret, now - 30000) === code) return -1;
+    if (totp(secret, now + 30000) === code) return 1;
+    return null;
+  }
+  function checkCode(secret, code) { return codeStep(secret, code) !== null; }
+
+  var copiedUntil = 0;
+  function phoneHtml(name, secret) {
+    var now = Date.now(), left = secsLeft(now), code = totp(secret, now);
+    return '<span class="ph-icon">📱</span><div class="ph-main"><div class="ph-lbl">' + esc(name) + '\'s phone · Authenticator · CampusHub</div>' +
+      '<div class="ph-row"><div class="ph-code mono">' + fmtCode(code) + '</div>' +
+      '<button type="button" class="copy-btn" data-copy="' + code + '">' + (now < copiedUntil ? '✓ Copied' : '📋 Copy') + '</button></div></div>' +
+      '<div class="ring" style="--p:' + Math.round(left / 30 * 100) + '%">' + left + '</div>';
+  }
+
+  function showView(v) {
+    ['authView', 'welcomeView', 'setupView', 'codeView'].forEach(function (id) { $(id).hidden = id !== v; });
+  }
+
+  function renderTfaStatus() {
+    var u = find(loggedIn);
+    $('tfaStatus').innerHTML = u && u.tfa
+      ? '<span class="on">✓ 2FA is on</span><button type="button" class="small-btn" id="tfaOff">Turn off 2FA</button>'
+      : '<span class="off">2FA is off</span><button type="button" class="primary" id="tfaOn">Turn on 2FA</button>';
+    var on = $('tfaOn'), off = $('tfaOff');
+    if (on) on.addEventListener('click', startSetup);
+    if (off) off.addEventListener('click', function () { u.tfa = null; renderTfaStatus(); renderDb(u.name); });
+  }
+
+  function startSetup() {
+    var u = find(loggedIn), secret = randomSecret();
+    tfa = { kind: 'setup', user: u, secret: secret };
+    var uri = 'otpauth://totp/CampusHub:' + encodeURIComponent(u.name) + '?secret=' + secret + '&issuer=CampusHub&algorithm=SHA1&digits=6&period=30';
+    var qr = qrcode(0, 'M'); qr.addData(uri); qr.make();
+    $('qr').innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
+    $('qrKey').textContent = secret.match(/.{1,4}/g).join(' ');
+    $('setupCode').value = ''; $('setupMsg').textContent = '';
+    showView('setupView'); tick();
+  }
+  function confirmSetup() {
+    var code = $('setupCode').value.replace(/\D/g, '');
+    if (!checkCode(tfa.secret, code)) { $('setupMsg').textContent = 'Wrong code. Try the current one.'; $('setupMsg').className = 'msg err'; return; }
+    tfa.user.tfa = tfa.secret;
+    var name = tfa.user.name; tfa = null;
+    showView('welcomeView'); renderTfaStatus(); renderDb(name); renderFlow();
+  }
+  function cancelTfa() {
+    var wasLogin = tfa && tfa.kind === 'login'; tfa = null;
+    if (wasLogin) { showView('authView'); setMode('login'); } else showView('welcomeView');
+    renderFlow();
+  }
+  function startCodeStep(u) {
+    tfa = { kind: 'login', user: u, secret: u.tfa };
+    $('codeUser').textContent = u.name;
+    $('loginCode').value = ''; $('codeMsg').textContent = '';
+    showView('codeView'); tick();
+  }
+  function submitCode() {
+    var code = $('loginCode').value.replace(/\D/g, ''), u = tfa.user;
+    if (!checkCode(u.tfa, code)) { $('codeMsg').textContent = 'Wrong code.'; $('codeMsg').className = 'msg err'; renderFlow(); return; }
+    tfa = null; showWelcome(u.name); renderDb(u.name); renderFlow();
+  }
+
+  // Live view: phone and server compute the same code from secret + time.
+  var tfaDetail = false; // show the step-by-step calculation instead of phone vs. server
+  var tfaExact = false;  // inside that view: the exact byte-level math instead of the simple version
+  function fmtSecret(s) { return s.match(/.{1,4}/g).join(' '); }
+
+  // Every intermediate value of the TOTP calculation, for the "how is the code made" view.
+  function totpSteps(secret, ms) {
+    var unix = Math.floor(ms / 1000), counter = Math.floor(unix / 30);
+    var msg = new Uint8Array(8), dv = new DataView(msg.buffer);
+    dv.setUint32(0, Math.floor(counter / 4294967296)); dv.setUint32(4, counter >>> 0);
+    var h = hmacSha1(base32Decode(secret), msg), o = h[19] & 15;
+    var bin = ((h[o] & 127) << 24) | (h[o + 1] << 16) | (h[o + 2] << 8) | h[o + 3];
+    return { unix: unix, counter: counter, h: h, o: o, bin: bin, code: ('00000' + (bin % 1000000)).slice(-6) };
+  }
+  function num(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); } // narrow no-break space between thousands
+
+  function renderTfaDetail(secret, now) {
+    var s = totpSteps(secret, now), hex = [];
+    for (var i = 0; i < 20; i++) {
+      var b = ('0' + s.h[i].toString(16)).slice(-2);
+      if (i === 19) b = b[0] + '<span class="hl-off">' + b[1] + '</span>';
+      hex.push(i >= s.o && i < s.o + 4 ? '<span class="hl">' + b + '</span>' : b);
+    }
+    var picked = [0, 1, 2, 3].map(function (k) { return ('0' + s.h[s.o + k].toString(16)).slice(-2); }).join(' ');
+    var scrambled = Array.prototype.map.call(s.h.slice(0, 6), function (b) { return ('0' + b.toString(16)).slice(-2); }).join('') + '…';
+    var arrow = '<span class="arrow">→</span>';
+    var links = '<div class="compare">' +
+      '<button type="button" class="link-btn" data-act="tfa-exact">' + (tfaExact ? 'Hide the exact math' : 'Show the exact math') + '</button>' +
+      ' &nbsp;·&nbsp; <button type="button" class="link-btn" data-act="tfa-simple">← Back to phone vs. server</button></div>';
+
+    // Simple version for everyone: three steps, no bytes.
+    if (!tfaExact) {
+      return '<ol class="calc">' +
+        '<li><span class="step-t">Clock → number (+1 every 30 s)</span>' +
+          '<span class="chip time mono">' + clock(now) + '</span> → <b class="mono">' + num(s.counter) + '</b></li>' +
+        '<li><span class="step-t">Secret + number → hash</span>' +
+          '<div class="pipe" style="margin:4px 0"><span class="chip salt mono">' + fmtSecret(secret) + '</span><span class="arrow">+</span>' +
+          '<span class="chip mono">' + num(s.counter) + '</span>' + arrow + '<span class="machine">⚙</span>' + arrow +
+          '<span class="chip mono">' + scrambled + '</span></div></li>' +
+        '<li><span class="step-t">Hash → 6 digits</span>' +
+          '<span class="chip code mono">' + fmtCode(s.code) + '</span></li>' +
+        '</ol>' +
+        '<div class="compare">No secret, no code. New code in ' + secsLeft(now) + ' s.</div>' + links;
+    }
+
+    return '<ol class="calc">' +
+      '<li><span class="step-t">Time → step number</span>' +
+        '<span class="mono">' + clock(now) + '</span> is <span class="mono">' + num(s.unix) + '</span> seconds since 1 Jan 1970. ' +
+        '÷ 30 → step <b class="mono">' + num(s.counter) + '</b>. It changes every 30 seconds.</li>' +
+      '<li><span class="step-t">Mix secret + step number</span>' +
+        'HMAC-SHA1(<span class="chip salt mono">' + fmtSecret(secret) + '</span>, ' + num(s.counter) + ') =' +
+        '<div class="hexline mono">' + hex.join(' ') + '</div></li>' +
+      '<li><span class="step-t">Pick 4 bytes</span>' +
+        'The last digit is <b class="mono hl-off">' + (s.h[19] & 15).toString(16) + '</b> = ' + s.o +
+        ', so take the 4 bytes starting at position ' + s.o + ': <span class="mono hl">' + picked + '</span> → as a number (without the very first bit): <b class="mono">' + num(s.bin) + '</b></li>' +
+      '<li><span class="step-t">Keep the last 6 digits</span>' +
+        '<span class="mono">' + num(s.bin) + '</span> → <span class="chip code mono">' + fmtCode(s.code) + '</span></li>' +
+      '</ol>' +
+      '<div class="compare">This is the exact standard (TOTP, RFC 6238) every authenticator app uses. New code in ' + secsLeft(now) + ' s.</div>' + links;
+  }
+
+  function renderTfa() {
+    var body = $('flowBody'), title = $('flowTitle'), now = Date.now(), secret = tfa.secret;
+    var code = totp(secret, now), arrow = '<span class="arrow">→</span>';
+    title.innerHTML = '<span class="live">Live</span>' + (tfaDetail ? 'How the code is made (TOTP)' : '2FA: secret + time → code');
+    if (tfaDetail) { body.innerHTML = renderTfaDetail(secret, now); return; }
+    function row(who) {
+      return '<span class="who">' + who + '</span>' +
+        '<span class="chip salt mono">' + fmtSecret(secret) + '</span><span class="arrow">+</span>' +
+        '<span class="chip time mono">' + clock(now) + '</span>' + arrow +
+        '<span class="chip code mono">' + fmtCode(code) + '</span>';
+    }
+    var typedEl = tfa.kind === 'setup' ? $('setupCode') : $('loginCode');
+    var typed = typedEl.value.replace(/\D/g, ''), typedHtml = '';
+    if (typed.length === 6) {
+      var st = codeStep(secret, typed);
+      typedHtml = '<div class="compare">Typed: <span class="mono">' + fmtCode(typed) + '</span> &nbsp;<span class="verdict ' +
+        (st === 0 ? 'ok">✓ matches' : st === null ? 'err">✗ wrong code' :
+          'ok">✓ still accepted</span> <span class="muted-note">(the ' + (st < 0 ? 'previous' : 'next') +
+          ' code: servers allow one step extra, because clocks and typing are never exact)') + '</span></div>';
+    }
+    body.innerHTML = '<div class="tfa-grid">' +
+      '<span></span><span class="h">Shared secret</span><span></span><span class="h">Time</span><span></span><span class="h">Code</span>' +
+      row('📱 Phone') + row('🖥️ Server') + '</div>' +
+      '<div class="compare">Same secret + same time = same code. New code in ' + secsLeft(now) + ' s.</div>' +
+      (method === 'plain' ? '' : '<div class="compare">🔑 The server keeps its copy locked and unlocks it with a key outside the database.</div>') +
+      typedHtml +
+      '<div class="compare"><button type="button" class="link-btn" data-act="tfa-detail">🔍 How is the code made?</button></div>';
+  }
+
+  // Once per second: update the demo phones and the live 2FA view.
+  function tick() {
+    if (!tfa) return;
+    var el = tfa.kind === 'setup' ? $('setupPhone') : $('loginPhone');
+    el.innerHTML = phoneHtml(tfa.user.name, tfa.secret);
+    renderFlow();
+  }
+  setInterval(tick, 1000);
+
+  /* attacker tries the cracked passwords on the login page */
+  function attackLogin(name) {
+    if (!attack || !(name in attack.cracked)) return;
+    var token = {};
+    attack.login = { name: name, step: 0, token: token };
+    renderFlow();
+    [1, 2].forEach(function (step) {
+      setTimeout(function () {
+        if (!attack || !attack.login || attack.login.token !== token) return; // reset or another try started
+        attack.login.step = step; renderFlow();
+      }, step * 900);
+    });
+  }
+
+  function attackLoginHtml(A, names) {
+    if (!names.length) return '';
+    var html = '<div class="atk-try"><span class="atk-lbl">🕵️ Try them:</span>' +
+      names.map(function (nm) {
+        return '<button type="button" class="small-btn danger" data-act="atk-login" data-user="' + esc(nm) + '">Log in as ' + esc(nm) + '</button>';
+      }).join('') + '</div>';
+    var L = A.login;
+    if (!L) return html;
+    var u = find(L.name), pw = A.cracked[L.name];
+    html += '<div class="atk-log">' +
+      '<div>🕵️ <b>' + esc(L.name) + '</b> / <span class="mono">"' + esc(pw) + '"</span> → campushub.example</div>';
+    if (L.step >= 1) html += '<div class="verdict ok" style="color:var(--text)">Password ✓ correct</div>';
+    if (L.step >= 2) {
+      if (!u.tfa) {
+        html += '<div class="verdict err">🔓 Logged in. The attacker now controls ' + esc(L.name) + '\'s account.</div>';
+      } else if (method === 'plain') {
+        html += '<div>2FA code needed → the attacker reads the secret <span class="chip salt mono">' + fmtSecret(u.tfa) +
+          '</span> from the stolen table and makes the code <span class="chip code mono">' + fmtCode(totp(u.tfa, Date.now())) + '</span></div>' +
+          '<div class="verdict err">🔓 Logged in anyway, because this server left the 2FA secret readable.</div>';
+      } else {
+        html += '<div>2FA code needed → no phone, and the secret is locked 🔒. The key is not in the stolen table.</div>' +
+          '<div class="verdict ok">🛡️ Blocked. 2FA saved this account.</div>';
+      }
+    } else html += '<div class="muted">…</div>';
+    return html + '</div>';
+  }
+
+  function renderAttack() {
+    var body = $('flowBody'), title = $('flowTitle'), A = attack;
+    var n = users.length, names = Object.keys(A.cracked), arrow = '<span class="arrow">→</span>';
+    title.innerHTML = '<span class="live atk' + (A.done ? '' : ' running') + '">Attacker</span>' +
+      (A.done ? 'Finished cracking the stolen table' : 'Cracking the stolen table …');
+
+    // Cracked accounts that are still protected (or not) by 2FA.
+    var with2fa = names.filter(function (nm) { var u = find(nm); return u && u.tfa; });
+    var tfaNote = '';
+    if (with2fa.length) {
+      tfaNote = method === 'plain'
+        ? '<p class="sub" style="margin-top:8px">🔑 Even the 2FA secrets are readable here.</p>'
+        : '<p class="sub" style="margin-top:8px">🛡️ 2FA protects ' + with2fa.join(', ') + ' here. But the password still works on other sites.</p>';
+    }
+
+    if (method === 'plain') {
+      body.innerHTML = '<div class="summary bad">Nothing to crack: everything is readable.</div>' +
+        attackLoginHtml(A, names) + tfaNote;
+      return;
+    }
+
+    var html = '';
+    if (!A.done) {
+      var target = method === 'hash'
+        ? '<span class="chip mono">' + short(A.lastHash) + '</span>' + arrow + '<span>compare with all rows</span>'
+        : '<span class="chip">× ' + A.stepCalcs + (A.stepCalcs === 1 ? ' user' : ' users') + '</span>';
+      html += '<div class="pipe">' +
+        (method === 'salt' ? '<span class="chip salt">each user\'s salt</span><span class="arrow">+</span>' : '') +
+        '<span class="chip mono">"' + esc(A.guess) + '"</span>' + arrow +
+        '<span class="machine">⚙ hash function<small>SHA-256</small></span>' + arrow + target + '</div>';
+    }
+    html += '<div class="track"><div style="width:' + Math.round(100 * A.i / WORDLIST.length) + '%"></div></div>' +
+      '<div class="stats"><span>Guess <b>' + A.i + '</b> of ' + WORDLIST.length + ' common passwords</span>' +
+      '<span>Hash calculations: <b>' + A.calcs + '</b></span></div>';
+
+    if (A.done) {
+      html += '<div class="summary' + (names.length ? ' bad' : '') + '">Cracked ' + names.length + ' of ' + n + ' accounts.</div>';
+      html += '<p class="sub">' + (method === 'hash'
+        ? 'Same password, cracked together.'
+        : 'Salt means more work (' + A.calcs + ' instead of ' + WORDLIST.length + ' hashes). Weak passwords still fall.') +
+        '</p>' + attackLoginHtml(A, names) + tfaNote;
+    }
+    body.innerHTML = html;
+  }
+
+  // Shows the server's steps for the last action (sign up or log in).
+  var lastAction = null;
+  function renderFlow() {
+    var body = $('flowBody'), title = $('flowTitle');
+    var live = !$('authView').hidden && elPw.value;
+    var info = tfa ? FLOW_INFO.tfa : (showAttack && attack && !live) ? FLOW_INFO.attack : FLOW_INFO.normal;
+    if ($('flowInfo').innerHTML !== info) $('flowInfo').innerHTML = info;
+    if (tfa) { renderTfa(); return; }
+    if (live) { renderLive(); return; }
+    prevLive = '';
+    if (showAttack && attack) { renderAttack(); return; }
+    if (!lastAction) {
+      title.textContent = 'Try this';
+      body.innerHTML = '<ol class="steps">' +
+        '<li><span>Create an account.</span></li>' +
+        '<li><span>Switch: <b>Plain text</b> → <b>Hash</b> → <b>Hash + salt</b>.</span></li>' +
+        '<li><span>Click <b>🔓 Steal &amp; crack</b>.</span></li>' +
+        '<li><span>Log in as <b>carol</b> / <b>123456</b>. She has 2FA.</span></li>' +
+        '</ol>';
+      return;
+    }
+    var A = lastAction, u = A.user;
+    var typed = '<span class="chip mono">"' + esc(A.typed) + '"</span>';
+    var arrow = '<span class="arrow">→</span>';
+    var steps;
+    if (method === 'plain') {
+      steps = typed + arrow + '<span class="machine">no change</span>' + arrow + '<span class="chip mono">"' + esc(A.typed) + '"</span>';
+    } else {
+      var salt = (method === 'salt' && u) ? '<span class="chip salt mono" title="salt">' + u.salt + '</span><span class="arrow">+</span>' : '';
+      var input = method === 'salt' && u ? u.salt + A.typed : A.typed;
+      steps = salt + typed + arrow + '<span class="machine">⚙ hash function<small>SHA-256</small></span>' + arrow +
+        '<span class="chip mono" title="' + hash(input) + '">' + short(hash(input)) + '</span>';
+    }
+
+    if (A.kind === 'signup') {
+      title.textContent = 'Sign up: ' + u.name;
+      body.innerHTML = '<div class="pipe">' + steps + '<span style="white-space:nowrap">' + arrow + ' <b>saved in the database</b></span></div>';
+    } else {
+      title.textContent = 'Log in: ' + A.name;
+      if (!u) {
+        body.innerHTML = '<div class="pipe"><span class="verdict err">✗ No user called “' + esc(A.name) + '”</span></div>';
+        return;
+      }
+      var calc = method === 'plain' ? A.typed : hash(method === 'salt' ? u.salt + A.typed : A.typed);
+      var ok = calc === stored(u);
+      body.innerHTML = '<div class="pipe">' + steps + arrow + '<span class="verdict ' + (ok ? 'ok">✓ matches' : 'err">✗ does not match') + '</span></div>' +
+        (method === 'plain' ? '' : '<div class="compare">Only hashes are compared, never the password.</div>');
+    }
+  }
+
+  function setMode(m) {
+    mode = m;
+    tabSignup.setAttribute('aria-selected', m === 'signup');
+    tabLogin.setAttribute('aria-selected', m === 'login');
+    elSubmit.textContent = m === 'signup' ? 'Create account' : 'Log in';
+    showMsg('');
+  }
+  function showMsg(text, kind) { elMsg.textContent = text; elMsg.className = 'msg' + (kind ? ' ' + kind : ''); }
+
+  function showWelcome(name) {
+    loggedIn = name;
+    $('welcomeName').textContent = name;
+    showView('welcomeView');
+    renderTfaStatus();
+  }
+
+  /* actions */
+  function submit() {
+    var name = elUser.value.trim().toLowerCase(), pw = elPw.value;
+    if (!name || !pw) { showMsg('Please fill in both fields.', 'err'); return; }
+
+    if (mode === 'signup') {
+      if (find(name)) { showMsg('This username is taken.', 'err'); return; }
+      var u = makeUser(name, pw, pendingSalt);
+      pendingSalt = randomSalt();
+      users.push(u);
+      stopAttack(); // the table changed, so old attack results no longer apply
+      lastAction = { kind: 'signup', user: u, name: name, typed: pw };
+      elPw.value = '';
+      renderDb(name); renderFlow();
+      setMode('login');
+      showMsg('Account created. You can log in now.', 'ok');
+    } else {
+      var user = find(name);
+      lastAction = { kind: 'login', user: user, name: name, typed: pw };
+      showAttack = false; // show the login steps; cracked marks stay in the table
+      var ok = user && stored(user) === (method === 'plain' ? pw : hash(method === 'salt' ? user.salt + pw : pw));
+      elPw.value = '';
+      if (ok && user.tfa) { renderDb(); startCodeStep(user); return; } // password ok, now the second factor
+      if (ok) { showWelcome(name); renderDb(name); }
+      else { showMsg('Wrong username or password.', 'err'); renderDb(); }
+      renderFlow();
+    }
+  }
+
+  tabSignup.addEventListener('click', function () { setMode('signup'); prevLive = ''; renderFlow(); });
+  tabLogin.addEventListener('click', function () { setMode('login'); prevLive = ''; renderFlow(); });
+  elSubmit.addEventListener('click', submit);
+  [elUser, elPw].forEach(function (el) {
+    el.addEventListener('keydown', function (e) { if (e.key === 'Enter') submit(); });
+    el.addEventListener('input', function () { showMsg(''); renderFlow(); }); // live view, key by key
+  });
+  $('togglePw').addEventListener('click', function () {
+    var show = elPw.type === 'password';
+    elPw.type = show ? 'text' : 'password';
+    this.textContent = show ? 'Hide' : 'Show';
+  });
+  $('logout').addEventListener('click', function () {
+    loggedIn = null; tfa = null;
+    lastAction = null; // forget the login summary, back to "Try this"
+    showView('authView');
+    setMode('login'); renderDb(); renderFlow();
+  });
+  // Buttons inside the (re-rendered) flow box.
+  $('flowBody').addEventListener('click', function (e) {
+    var act = e.target.getAttribute && e.target.getAttribute('data-act');
+    if (act === 'tfa-detail') { tfaDetail = true; renderFlow(); }
+    if (act === 'tfa-simple') { tfaDetail = false; tfaExact = false; renderFlow(); }
+    if (act === 'tfa-exact') { tfaExact = !tfaExact; renderFlow(); }
+    if (act === 'atk-login') attackLogin(e.target.getAttribute('data-user'));
+  });
+  // copy the code from the demo phone (the phone is redrawn every second, so listen on the parent)
+  ['setupPhone', 'loginPhone'].forEach(function (id) {
+    $(id).addEventListener('click', function (e) {
+      var b = e.target.closest('.copy-btn');
+      if (!b) return;
+      var code = b.getAttribute('data-copy');
+      var done = function () { copiedUntil = Date.now() + 1500; b.textContent = '✓ Copied'; };
+      try { navigator.clipboard.writeText(code).then(done, function () {}); } catch (err) {}
+    });
+  });
+  $('setupConfirm').addEventListener('click', confirmSetup);
+  $('setupCancel').addEventListener('click', cancelTfa);
+  $('codeSubmit').addEventListener('click', submitCode);
+  $('codeCancel').addEventListener('click', cancelTfa);
+  [['setupCode', confirmSetup], ['loginCode', submitCode]].forEach(function (p) {
+    var el = $(p[0]);
+    el.addEventListener('input', function () { el.value = el.value.replace(/\D/g, '').slice(0, 6); renderFlow(); });
+    el.addEventListener('keydown', function (e) { if (e.key === 'Enter') p[1](); });
+  });
+  document.querySelectorAll('.methods button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (b.dataset.method === method) return;
+      method = b.dataset.method; prevLive = ''; stopAttack(); renderDb(); renderFlow();
+    });
+  });
+  $('crack').addEventListener('click', startAttack);
+  $('reset').addEventListener('click', function () {
+    stopAttack(); tfa = null;
+    resetUsers(); lastAction = null; loggedIn = null; pendingSalt = randomSalt();
+    showView('authView');
+    elUser.value = ''; elPw.value = ''; setMode('signup');
+    renderDb(); renderFlow();
+  });
+  // Close other ⓘ popovers when one opens, and all when clicking elsewhere.
+  document.addEventListener('click', function (e) {
+    document.querySelectorAll('details.info[open]').forEach(function (d) { if (!d.contains(e.target)) d.open = false; });
+  });
+
+  /* walkthrough */
+  // Each step points at part of the page. Steps with `wait` move on by themselves
+  // once the visitor has done the action; the others have a Next button.
+  var TOUR = [
+    { el: null, text: 'You run the website <b>CampusHub</b>. Let\'s look behind the login!' },
+    { el: '.browser', text: 'Create an account. Use a <b>fake</b> password.',
+      wait: function () { return lastAction && lastAction.kind === 'signup'; } },
+    { el: '#flow, .db', text: '<b>Plain text</b>: your password is readable. Bad!' },
+    { el: '.methods', text: 'Click <b>Hash</b>.', wait: function () { return method === 'hash'; } },
+    { el: '.db', text: 'Scrambled! But <b>alice</b> and <b>carol</b>: same hash = same password.' },
+    { el: '.methods', text: 'Click <b>Hash + salt</b>.', wait: function () { return method === 'salt'; } },
+    { el: '.db', text: 'With a random <b>salt</b>, every value is different.' },
+    { el: '#crack', text: 'A hacker steals the table. Click <b>🔓 Steal &amp; crack</b>.',
+      wait: function () { return attack && attack.done; } },
+    { el: '#flow', text: 'Weak passwords fall anyway. Click <b>Log in as alice</b>.',
+      wait: function () { return attack && attack.login && attack.login.step >= 2; } },
+    { el: '#flow', text: 'The attacker is in! Now <b>Log in as carol</b>. She has 2FA.',
+      wait: function () { return attack && attack.login && attack.login.name === 'carol' && attack.login.step >= 2; } },
+    { el: '.browser', text: 'Blocked! Now <b>you are the real carol</b>. Log in: <b>carol</b> / <b>123456</b>.',
+      wait: function () { return tfa && tfa.kind === 'login' && tfa.user.name === 'carol'; } },
+    { el: '#flow, #loginPhone', text: '<b>Your phone</b> and the server make the same code. Type it in.',
+      wait: function () { return loggedIn === 'carol'; } },
+    { el: null, last: true, text: '<span class="tk-head">Remember:</span>' +
+      '<ol class="takeaways">' +
+      '<li><span class="ic">🎲</span><div><h3>Long and random</h3><p>A password manager helps.</p></div></li>' +
+      '<li><span class="ic">🔁</span><div><h3>A different one everywhere</h3><p>One leak, not all accounts.</p></div></li>' +
+      '<li><span class="ic">📱</span><div><h3>Turn on 2FA</h3><p>A stolen password is not enough. Even better: a passkey, no password at all.</p></div></li>' +
+      '</ol>' }
+  ];
+  var tourStep = -1, tourWasDone = false;
+
+  function tourHighlight(sel) {
+    document.querySelectorAll('.tour-hl').forEach(function (e) { e.classList.remove('tour-hl'); });
+    if (!sel) return;
+    var els = document.querySelectorAll(sel);
+    els.forEach(function (e) { e.classList.add('tour-hl'); });
+    var first = els[0];
+    if (first) {
+      var r = first.getBoundingClientRect();
+      if (r.top < 70 || r.bottom > window.innerHeight - 200) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+  function tourShow(i) {
+    tourStep = i;
+    var s = TOUR[i];
+    $('tour').hidden = false;
+    $('tourCount').textContent = 'Step ' + (i + 1) + ' of ' + TOUR.length;
+    $('tourText').innerHTML = s.text;
+    $('tour').classList.toggle('final', !!s.last);
+    $('tourShade').hidden = !s.last;
+    $('tourBack').hidden = i === 0;
+    $('tourNext').hidden = !!s.wait;
+    $('tourNext').textContent = s.last ? 'Finish' : 'Next';
+    $('tourWait').hidden = !s.wait;
+    // Only move on when the action happens after this step was shown.
+    tourWasDone = s.wait ? !!s.wait() : false;
+    tourHighlight(s.el);
+  }
+  function tourEnd() {
+    tourStep = -1; $('tour').hidden = true; $('tourShade').hidden = true; tourHighlight(null);
+  }
+  function tourStart() {
+    $('reset').click();
+    if (method !== 'plain') document.querySelector('.methods [data-method="plain"]').click();
+    tourShow(0);
+  }
+  setInterval(function () {
+    if (tourStep < 0) return;
+    var s = TOUR[tourStep];
+    if (!s.wait) return;
+    var done = !!s.wait();
+    if (done && !tourWasDone) setTimeout(function () { if (TOUR[tourStep] === s) tourShow(tourStep + 1); }, 600);
+    tourWasDone = done;
+  }, 250);
+  $('tourStart').addEventListener('click', tourStart);
+
+  // side by side (good on a projector) or one below the other (more room for the table); not stored
+  $('layoutBtn').addEventListener('click', function () {
+    var stacked = document.querySelector('.split').classList.toggle('stacked');
+    this.textContent = stacked ? '⇆ Side by side' : '⇅ One below the other';
+  });
+  $('tourNext').addEventListener('click', function () { if (TOUR[tourStep].last) tourEnd(); else tourShow(tourStep + 1); });
+  $('tourBack').addEventListener('click', function () { if (tourStep > 0) tourShow(tourStep - 1); });
+  $('tourClose').addEventListener('click', tourEnd);
+
+  resetUsers(); renderDb(); renderFlow();
+  if (location.hash === '#tour') tourStart();
+})();
+</script>
+</body>
+</html>
