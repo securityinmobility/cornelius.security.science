@@ -1,6 +1,6 @@
 services:
   learn-cybersecurity:
-    image: nginx:1.27-alpine
+    image: nginx:mainline-alpine
     restart: always
     volumes:
       - ./html:/usr/share/nginx/html:ro
@@ -16,7 +16,7 @@ services:
       resources:
         limits:
           cpus: '0.25'
-          memory: '0.1g'
+          memory: '1g'
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.learn-cybersecurity.rule=Host(`learn.security.science`)"
@@ -53,7 +53,7 @@ services:
       resources:
         limits:
           cpus: '0.25'
-          memory: '0.1g'
+          memory: '1g'
 
 networks:
   web:

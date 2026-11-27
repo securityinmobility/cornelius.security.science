@@ -88,6 +88,14 @@
     .missed li { background: var(--surface); border-radius: 10px; padding: 10px 14px; margin-bottom: 8px; font-size: 15px; }
     .missed .tag { font-weight: 800; margin-right: 6px; }
     .missed .tag.phish { color: var(--bad); } .missed .tag.legit { color: var(--accent); }
+    .remember { width: 100%; max-width: 620px; text-align: left; margin: 6px 0 26px; }
+    .remember[hidden] { display: none; }
+    .remember h2 { font-size: 1.1rem; margin: 0 0 10px; text-align: center; }
+    .remember ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+    .remember li { display: flex; gap: 14px; align-items: flex-start; background: var(--surface); border-radius: 12px; padding: 14px 16px; }
+    .remember .n { flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: var(--accent-text); display: grid; place-items: center; font-weight: 800; }
+    .remember b { display: block; font-size: 1.1rem; }
+    .remember span { color: var(--muted); font-size: 15px; }
     .btn-row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
     .btn { font: inherit; font-weight: 700; padding: 11px 22px; border-radius: 10px; cursor: pointer; border: 2px solid var(--line); background: var(--bg); color: var(--text); }
     .btn.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
@@ -109,15 +117,18 @@
     /* projector: everything in the running game 1.35x bigger, readable from the back */
     /* reveal on wide screens: card left, answer right, so nothing falls below the fold */
     @media (min-width: 760px) {
-      #hGame.revealing { max-width: 1140px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 24px; align-items: start;
+      #hGame.revealing:not(.stack) { max-width: 1140px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 24px; align-items: start;
         grid-template-areas: "top top" "sit sit" "card ans"; }
-      #hGame.revealing > .topline { grid-area: top; }
-      #hGame.revealing > #hSit { grid-area: sit; }
-      #hGame.revealing > #hCard { grid-area: card; }
-      #hGame.revealing > #hRevealBox { grid-area: ans; margin-top: 0; }
+      #hGame.revealing:not(.stack) > .topline { grid-area: top; }
+      #hGame.revealing:not(.stack) > #hSit { grid-area: sit; }
+      #hGame.revealing:not(.stack) > #hCard { grid-area: card; }
+      #hGame.revealing:not(.stack) > #hRevealBox { grid-area: ans; margin-top: 0; }
     }
     @media (min-width: 1000px) and (min-height: 650px) { #hGame { zoom: 1.35; } #hGame.revealing { zoom: 1; } }
     @media (min-width: 1500px) and (min-height: 850px) { #hGame.revealing { zoom: 1.25; } }
+    .layout-btn { margin-left: 10px; font: inherit; font-size: 13px; color: var(--muted); background: none; border: 1px solid var(--line); border-radius: 8px; padding: 1px 8px; cursor: pointer; }
+    .layout-btn:hover { color: var(--text); border-color: var(--accent); }
+    @media (max-width: 759px) { .layout-btn { display: none; } }
     .all-in { color: var(--accent); background: var(--good-bg); padding: 2px 10px; border-radius: 999px; }
     .lobby { display: flex; align-items: center; gap: 36px; margin-bottom: 18px; flex-wrap: wrap; justify-content: center; }
     .big-code { font-size: clamp(4rem, 12vw, 7.5rem); font-weight: 800; letter-spacing: .12em; line-height: 1; }
@@ -206,6 +217,7 @@
       <div class="result-score" id="rScore"></div>
       <p class="lead" id="rText" style="margin-bottom:0"></p>
       <ul class="missed" id="rMissed"></ul>
+      <div class="remember"></div>
       <div class="btn-row">
         <button type="button" class="btn primary" id="again">Play again</button>
         <button type="button" class="btn" data-go="vHome">Home</button>
@@ -253,7 +265,7 @@
         </div>
       </div>
       <div class="game wide" id="hGame" hidden>
-        <div class="topline"><span>Message <b id="hPos"></b> of <b id="hTotal"></b></span><span>Code <b class="mono" id="hCode2"></b> · <span id="hAnswered"></span></span></div>
+        <div class="topline"><span>Message <b id="hPos"></b> of <b id="hTotal"></b> <button type="button" class="layout-btn" id="hLayout">⇅ Answer below</button></span><span>Code <b class="mono" id="hCode2"></b> · <span id="hAnswered"></span></span></div>
         <div class="situation" id="hSit" hidden><b>Your situation:</b> <span></span></div>
         <article class="card" id="hCard"></article>
         <div class="host-ctl" id="hCtl"><button type="button" class="btn primary" id="hReveal">Reveal answer</button></div>
@@ -262,6 +274,7 @@
       <div class="center" id="hEnd" hidden>
         <h1>Results</h1>
         <div class="stats" id="hStats"></div>
+        <div class="remember"></div>
         <div class="btn-row">
           <button type="button" class="btn primary" id="hAgain">Play again</button>
           <button type="button" class="btn" id="hClose2">Close room</button>
@@ -277,6 +290,7 @@
         <div class="center wait" id="pWait">
           <div class="big" id="pWaitIcon">⏳</div>
           <p id="pWaitText"></p>
+          <div class="remember" id="pRemember" hidden></div>
           <button type="button" class="btn" id="pHome" hidden>Back to start</button>
         </div>
         <div id="pPlay" hidden>
@@ -323,6 +337,18 @@
   function plain(s) { return String(s).replace(/\[\[|\]\]/g, ''); }
   function shuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
   function qrSvg(text) { var q = qrcode(0, 'M'); q.addData(text); q.make(); return q.createSvgTag({ cellSize: 4, margin: 0, scalable: true }); }
+
+  /* the three things to remember, shown at the end */
+  var REMEMBER = [
+    ['Check before you click.', 'Who really sent it? Where does the link really go?'],
+    ['Pressure is a red flag.', 'Urgency, threats or prizes want you to act without thinking. Slow down.'],
+    ['When in doubt, check another way.', 'Call or ask via a number or website you know, never via the message itself. And never share passwords or codes.']
+  ];
+  document.querySelectorAll('.remember').forEach(function (el) {
+    el.innerHTML = '<h2>Remember</h2><ol>' + REMEMBER.map(function (r, i) {
+      return '<li><span class="n">' + (i + 1) + '</span><div><b>' + r[0] + '</b><span>' + r[1] + '</span></div></li>';
+    }).join('') + '</ol>';
+  });
 
   /* views */
   function show(id) {
@@ -630,6 +656,12 @@
   }
 
   $('hStart').addEventListener('click', function () { host('start'); });
+  // answer beside the card (default) or below it; not stored
+  $('hLayout').addEventListener('click', function () {
+    var stacked = $('hGame').classList.toggle('stack');
+    this.textContent = stacked ? '⇆ Answer beside' : '⇅ Answer below';
+    this.blur(); // so a presenter's space/enter doesn't press this button again
+  });
 
   // presenter clickers send right arrow, PageDown, space or enter: start, reveal, next
   var keyBusy = false;
@@ -657,8 +689,9 @@
   $('hClose2').addEventListener('click', closeRoom);
 
   /* player (phone) */
-  function wait(icon, text, home) {
+  function wait(icon, text, home, remember) {
     $('pWait').hidden = false; $('pPlay').hidden = true;
+    $('pRemember').hidden = !remember;
     $('pWaitIcon').textContent = icon; $('pWaitText').textContent = text;
     $('pHome').hidden = !home;
   }
@@ -667,7 +700,7 @@
     if ($('vPlayer').hidden) show('vPlayer');
     if (s.phase === 'gone' || s.phase === 'closed') {
       leave();
-      wait('👋', 'The room was closed. Thanks for playing!', true);
+      wait('👋', 'The room was closed. Thanks for playing!', true, true);
       return;
     }
     $('pName').textContent = s.code;
@@ -676,7 +709,7 @@
     if (s.phase === 'lobby') { shown = null; wait('⏳', 'You\'re in! Wait for the game to start.'); return; }
     if (s.phase === 'end') {
       shown = null;
-      wait(s.rank === 1 && s.score > 0 ? '🏆' : '🏁', 'Game over! You are #' + s.rank + ' of ' + s.count + ' with ' + s.score + ' of ' + s.total + ' points.');
+      wait(s.rank === 1 && s.score > 0 ? '🏆' : '🏁', 'Game over! You are #' + s.rank + ' of ' + s.count + ' with ' + s.score + ' of ' + s.total + ' points.', false, true);
       return;
     }
 

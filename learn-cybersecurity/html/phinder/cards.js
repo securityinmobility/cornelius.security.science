@@ -93,6 +93,18 @@
       why: ['It\'s YOUR code: someone is logging in as you', 'Never share a code', 'Ask Lena in person'] },
 
 
+    // inspired by "You Have (1) New-Document - Shared Via Drop-box"
+    { kind: 'Email', phish: true, from: 'THI Cloud', addr: 'share@[[thi-cloud.example]]',
+      subject: 'Lisa shared "Exam_results.xlsx" with you', body: 'Lisa shared a file with you. [[Sign in with your THI account]] to open it.',
+      link: 'Open file', url: '[[thi-cloud.example]]/login',
+      flags: ['sender', 'link', 'data', 'unexpected'],
+      why: ['Curiosity bait: exam results', 'Sender is not @thi.de', 'Login page is fake'] },
+    // student side jobs that are really money laundering
+    { kind: 'Email', phish: true, from: 'Campus Jobs', addr: 'jobs@[[student-jobs.example]]',
+      subject: 'Easy side job: €500 per week', body: 'Work from home, 2 hours a week. Money arrives on your account and you [[forward it to our partners]]. [[Reply with your bank details]] to start.',
+      flags: ['tooGood', 'money', 'data', 'unexpected'],
+      why: ['Too good to be true', 'Forwarding money for others is a crime (money mule)', 'Asks for your bank details'] },
+
     { kind: 'Email', phish: false, from: 'THI Library', addr: 'bibliothek@thi.de',
       context: 'You borrowed this book three weeks ago.',
       subject: 'Your book is due in 3 days', body: '"Network Security" is due on Friday. You can renew it in your library account.',
@@ -141,6 +153,10 @@
     { kind: 'Email', phish: false, from: 'THI Studienangelegenheiten', addr: 'studienangelegenheiten@thi.de',
       subject: 'Re-registration for the summer semester', body: 'Dear Anna Schnupfelberg, please pay the semester fee by 15 February. You find the bank details in the student portal.',
       why: ['Real domain thi.de', 'No link: you go to the portal yourself', 'Normal deadline, no threat'] },
+    // counterpart to sign-in warnings: a real one that matches what you just did
+    { kind: 'Email', phish: false, from: 'MyBank', addr: 'alerts@mybank.example', context: 'You just logged in on your new laptop.',
+      subject: 'New sign-in to your account', body: 'Someone signed in from Chrome on Windows. If this was you, you don\'t need to do anything. If not, open the MyBank app.',
+      why: ['It matches what you just did', 'No link: it sends you to the app', 'No pressure'] },
     { kind: 'SMS', phish: false, from: 'MyBank', addr: '', context: 'You are logging in to MyBank right now.',
       body: 'Your MyBank code is 482 913. Never share this code. MyBank will never call you to ask for it.',
       why: ['You just tried to log in yourself', 'No link, nothing to click', 'It even warns you'] }

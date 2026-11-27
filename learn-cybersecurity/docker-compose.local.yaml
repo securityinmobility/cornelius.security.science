@@ -4,7 +4,7 @@
 # Phones in the same network can join via http://<your-computer-ip>:8080/phinder/
 services:
   web:
-    image: nginx:1.27-alpine
+    image: nginx:mainline-alpine
     ports:
       - "8080:80"
     volumes:
